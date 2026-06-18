@@ -35,18 +35,17 @@ export const PetLaser = ({ startPos, endPos, color, onFinish }: { startPos: [num
   );
 };
 
-export const EnergyBlast = ({ position, direction, onFinish }: {
+export const EnergyBlast = ({ position, direction, onFinish, isAwakened = false }: {
   position: [number, number, number], 
   direction: [number, number, number],
-  onFinish: () => void 
+  onFinish: () => void,
+  isAwakened?: boolean
 }) => {
   const [ref, api] = useSphere(() => ({
     mass: 0.1,
     args: [0.3],
     position,
-    onCollide: () => {
-      // Impact logic can go here
-    }
+    onCollide: () => {}
   }));
 
   const startTime = useRef(Date.now());
@@ -72,18 +71,17 @@ export const EnergyBlast = ({ position, direction, onFinish }: {
     if (Date.now() - startTime.current > 2000) onFinish();
   });
 
+  const baseColor = isAwakened ? "#a855f7" : "#00ffff"; // Purple if awakened
   return (
     <mesh ref={ref as any}>
-      {/* Elongated sphere with lower segment counts */}
       <sphereGeometry args={[0.3, 8, 8]} />
       <meshStandardMaterial 
-        color="#00ffff" 
-        emissive="#00ffff" 
+        color={baseColor} 
+        emissive={baseColor} 
         emissiveIntensity={10} 
         transparent 
         opacity={0.9}
       />
-      {/* Lights removed from blast for performance */}
       <mesh scale={[1, 1, 3]} rotation={[Math.PI / 2, 0, 0]}>
         <sphereGeometry args={[0.2, 4, 4]} />
         <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} transparent opacity={0.5} />
@@ -815,7 +813,7 @@ export const GroundFire = ({ position }: { position: [number, number, number] })
   );
 };
 
-export const FireArrow = ({ position, direction, team = 'player' }: { position: [number, number, number], direction: [number, number, number], team?: 'player' | 'enemy' }) => {
+export const FireArrow = ({ position, direction, team = 'player', isAwakened = false }: { position: [number, number, number], direction: [number, number, number], team?: 'player' | 'enemy', isAwakened?: boolean }) => {
   const meshRef = useRef<THREE.Group>(null);
   const [life, setLife] = useState(4);
   const [isLaunched, setIsLaunched] = useState(false);
@@ -865,25 +863,29 @@ export const FireArrow = ({ position, direction, team = 'player' }: { position: 
 
   if (life <= 0) return null;
 
+  const coreColor = isAwakened ? "#a855f7" : "#ffcc00";
+  const glowColor = isAwakened ? "#e879f9" : "#ffffff";
+  const lightColor = isAwakened ? "#581c87" : "#ff4400";
+
   return (
     <group>
       <group ref={meshRef} position={position}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <coneGeometry args={[0.8, 4.0, 8]} />
-          <meshBasicMaterial color="#ffcc00" />
+          <meshBasicMaterial color={coreColor} />
         </mesh>
         <mesh>
           <sphereGeometry args={[1.2, 16, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+          <meshBasicMaterial color={glowColor} transparent opacity={0.6} />
         </mesh>
         {/* Fewer but larger trail voxels for better performance */}
         {[...Array(8)].map((_, i) => (
           <mesh key={i} position={[0, 0, -0.6 - i * 1.5]}>
             <boxGeometry args={[1.2 - i*0.1, 1.2 - i*0.1, 1.2 - i*0.1]} />
-            <meshBasicMaterial color={i < 3 ? "#ffffff" : i < 5 ? "#ffaa00" : "#ff0000"} transparent opacity={0.9 - i*0.1} />
+            <meshBasicMaterial color={i < 3 ? glowColor : i < 5 ? coreColor : lightColor} transparent opacity={0.9 - i*0.1} />
           </mesh>
         ))}
-        <pointLight color="#ff4400" intensity={200} distance={60} />
+        <pointLight color={lightColor} intensity={200} distance={60} />
       </group>
       
       {fires.map(f => (
@@ -916,10 +918,11 @@ export const FloatingSkull = ({ index, opacity }: { index: number, opacity: numb
   );
 };
 
-export const DomainExpansion = ({ position, rotation, onFinish }: { 
+export const DomainExpansion = ({ position, rotation, onFinish, isAwakened = false }: { 
   position: [number, number, number], 
   rotation: number, 
-  onFinish: () => void 
+  onFinish: () => void,
+  isAwakened?: boolean
 }) => {
   const [opacity, setOpacity] = useState(0);
   const startTime = useRef(Date.now());
@@ -962,8 +965,13 @@ export const DomainExpansion = ({ position, rotation, onFinish }: {
           rot: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI] 
         }]);
 
+        let damageMult = 25;
+        if (isAwakened) {
+            damageMult = 125;
+        }
+
         const event = new CustomEvent('bombExplode', { 
-          detail: { pos: slashPos, radius: 10, damageMultiplier: 25, team: 'player' } 
+          detail: { pos: slashPos, radius: 10, damageMultiplier: damageMult, team: 'player' } 
         });
         window.dispatchEvent(event);
       }
@@ -983,6 +991,12 @@ export const DomainExpansion = ({ position, rotation, onFinish }: {
     </mesh>
   );
 
+  const themeRed = isAwakened ? "#4c1d95" : "#200000";
+  const themeRedEmissive = isAwakened ? "#7e22ce" : "#400";
+  const themeBlood = isAwakened ? "#3b0764" : "#300";
+  const slashColor = isAwakened ? "#d8b4fe" : "#ffffff";
+  const lightColor = isAwakened ? "#8b5cf6" : "#ff0000";
+
   return (
     <group position={position}>
       {/* High-Density Voxel Shrine (Malevolent Shrine) - Ultra Detail Mode */}
@@ -999,29 +1013,29 @@ export const DomainExpansion = ({ position, rotation, onFinish }: {
           <group key={i}>
             <VoxelBlock p={[8, 1 + i*1.2, 2 - i*0.3]} s={[0.3, 0.3, 3]} c="#222" r={[0, 0.5, 0.1]} />
             <VoxelBlock p={[-8, 1 + i*1.2, 2 - i*0.3]} s={[0.3, 0.3, 3]} c="#222" r={[0, -0.5, -0.1]} />
-            <VoxelBlock p={[0, 8 + i*0.3, 3 - i*0.5]} s={[12 - i, 0.2, 0.2]} c="#300" e="#400" />
+            <VoxelBlock p={[0, 8 + i*0.3, 3 - i*0.5]} s={[12 - i, 0.2, 0.2]} c={themeBlood} e={themeRedEmissive} />
           </group>
         ))}
 
         {/* Tormented "Pixel" Trees from the image */}
         <group position={[10, 0, -2]} rotation={[0, -0.4, 0]}>
            {[...Array(20)].map((_, i) => (
-             <VoxelBlock key={i} p={[Math.sin(i*0.6)*0.4, i * 0.4, (i%3)*0.1]} s={[0.2, 0.4, 0.2]} c="#1a0a00" />
+             <VoxelBlock key={i} p={[Math.sin(i*0.6)*0.4, i * 0.4, (i%3)*0.1]} s={[0.2, 0.4, 0.2]} c="#111" />
            ))}
-           <VoxelBlock p={[1, 6, 0]} s={[2, 0.2, 0.2]} c="#1a0a00" r={[0, 0, 0.5]} />
-           <VoxelBlock p={[-1, 7, 0]} s={[2, 0.2, 0.2]} c="#1a0a00" r={[0, 0, -0.5]} />
+           <VoxelBlock p={[1, 6, 0]} s={[2, 0.2, 0.2]} c="#111" r={[0, 0, 0.5]} />
+           <VoxelBlock p={[-1, 7, 0]} s={[2, 0.2, 0.2]} c="#111" r={[0, 0, -0.5]} />
         </group>
         <group position={[-10, 0, -2]} rotation={[0, 0.4, 0]}>
            {[...Array(20)].map((_, i) => (
-             <VoxelBlock key={i} p={[Math.sin(i*0.6)*-0.4, i * 0.4, (i%3)*0.1]} s={[0.2, 0.4, 0.2]} c="#1a0a00" />
+             <VoxelBlock key={i} p={[Math.sin(i*0.6)*-0.4, i * 0.4, (i%3)*0.1]} s={[0.2, 0.4, 0.2]} c="#111" />
            ))}
-           <VoxelBlock p={[-1, 6, 0]} s={[2, 0.2, 0.2]} c="#1a0a00" r={[0, 0, -0.5]} />
-           <VoxelBlock p={[1, 7, 0]} s={[2, 0.2, 0.2]} c="#1a0a00" r={[0, 0, 0.5]} />
+           <VoxelBlock p={[-1, 6, 0]} s={[2, 0.2, 0.2]} c="#111" r={[0, 0, -0.5]} />
+           <VoxelBlock p={[1, 7, 0]} s={[2, 0.2, 0.2]} c="#111" r={[0, 0, 0.5]} />
         </group>
 
         {/* Main Pillar/Shrine Body */}
         <group position={[0, 4.5, 1]}>
-          <VoxelBlock p={[0, 0, 0]} s={[12, 10, 3]} c="#200000" e="#400" />
+          <VoxelBlock p={[0, 0, 0]} s={[12, 10, 3]} c={themeRed} e={themeRedEmissive} />
           <VoxelBlock p={[0, 0, 1.2]} s={[10, 8, 1]} c="#000" />
           
           {/* Dense Voxel Teeth Grid */}
@@ -1034,7 +1048,7 @@ export const DomainExpansion = ({ position, rotation, onFinish }: {
           <VoxelBlock p={[5.5, 0, 2.1]} s={[0.2, 6, 0.2]} c="#fff" />
           <VoxelBlock p={[-5.5, 0, 2.1]} s={[0.2, 6, 0.2]} c="#fff" />
           
-          <pointLight position={[0, 0, 1.5]} color="#ff0000" intensity={opacity * 80} distance={20} />
+          <pointLight position={[0, 0, 1.5]} color={lightColor} intensity={opacity * 80} distance={20} />
         </group>
 
         {/* Multi-layered Horned Roof (Matching Image) */}
@@ -1397,7 +1411,7 @@ export const Meteor = ({ position, rotation, onFinish }: { position: [number, nu
   );
 };
 
-export const QuickSlash = ({ position, rotation, onFinish, team = 'player' }: { position: [number, number, number], rotation: number, onFinish: () => void, team?: 'player' | 'enemy' }) => {
+export const QuickSlash = ({ position, rotation, onFinish, team = 'player', isAwakened = false }: { position: [number, number, number], rotation: number, onFinish: () => void, team?: 'player' | 'enemy', isAwakened?: boolean }) => {
 
   const innerRef = useRef<THREE.Group>(null);
   const timer = useRef(0);
@@ -1461,7 +1475,7 @@ export const QuickSlash = ({ position, rotation, onFinish, team = 'player' }: { 
            return (
              <mesh key={slash.id} position={slash.offset} rotation={[Math.PI/2, 0, slash.angle]} scale={[1, 1, Math.sin(t / 0.15 * Math.PI) * 120]}>
                <cylinderGeometry args={[0.05, 0.05, 1]} />
-               <meshBasicMaterial color="#aaffff" transparent opacity={Math.sin(t / 0.15 * Math.PI)} blending={THREE.AdditiveBlending} />
+               <meshBasicMaterial color={isAwakened ? "#a855f7" : "#aaffff"} transparent opacity={Math.sin(t / 0.15 * Math.PI)} blending={THREE.AdditiveBlending} />
              </mesh>
            )
         })}
@@ -1470,11 +1484,11 @@ export const QuickSlash = ({ position, rotation, onFinish, team = 'player' }: { 
         <group position={[0, 2, 0]}>
           <mesh position={[0, 0, 0]} scale={[30, 0.5, 2]}>
              <boxGeometry args={[1, 1, 1]} />
-             <meshBasicMaterial color="#00ffff" transparent opacity={Math.max(0, 1 - timer.current)} blending={THREE.AdditiveBlending} />
+             <meshBasicMaterial color={isAwakened ? "#3b0764" : "#00ffff"} transparent opacity={Math.max(0, 1 - timer.current)} blending={THREE.AdditiveBlending} />
           </mesh>
           <mesh position={[0, 0, -1]} scale={[25, 2, 1]}>
              <boxGeometry args={[1, 1, 1]} />
-             <meshBasicMaterial color="#ffffff" transparent opacity={Math.max(0, 1 - timer.current)} blending={THREE.AdditiveBlending} />
+             <meshBasicMaterial color={isAwakened ? "#a855f7" : "#ffffff"} transparent opacity={Math.max(0, 1 - timer.current)} blending={THREE.AdditiveBlending} />
           </mesh>
         </group>
         

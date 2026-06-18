@@ -10,7 +10,7 @@ import { RobloxCharacter } from './RobloxCharacter';
 const SPEED = 5;
 const JUMP_FORCE = 4;
 
-export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats }: { 
+export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats, isAwakened = false }: { 
   onShoot: () => void, 
   onThrowBomb: () => void,
   onUseEnergy?: (amount: number) => void,
@@ -21,7 +21,8 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   emitMove: (pos: [number, number, number], rot: [number, number, number], danceType?: number) => void,
   emitAttack: (type: string, data: any) => void,
   players: any[],
-  stats: any
+  stats: any,
+  isAwakened?: boolean
 }) => {
   const { camera } = useThree();
   const { forward, backward, left, right, jump, spiritBomb, dagger, bomb, charge, weapon1, weapon2, weapon3, weapon4, weapon5, weapon6, weapon7, weapon8, weapon9, weapon0, sniper, domain, fuga, theWorld, summon, barrier, dashAttack, blackFlash, frameFreeze, unlimitedVoid, selfEmbodiment, timeCellMoonPalace, spaceCleave, hollowPurple } = useControls();
@@ -1037,6 +1038,13 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           transparent 
         />
         <RobloxCharacter playerId={"local"} danceType={danceType} visible={danceType !== 0 || isThirdPerson} position={[0, -0.4, 0]} isLocalPlayer={true} scale={0.65} />
+        {isAwakened && (
+          <mesh visible={isThirdPerson || danceType !== 0}>
+             <sphereGeometry args={[1, 16, 16]} />
+             <meshStandardMaterial color="#8b5cf6" emissive="#3b0764" emissiveIntensity={5} wireframe transparent opacity={0.6} />
+             <pointLight color="#a855f7" intensity={5} distance={10} />
+          </mesh>
+        )}
       </mesh>
 
       {rikaSummons.map((r) => (
@@ -1054,6 +1062,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={qs.pos}
           rotation={qs.rot}
           onFinish={() => setQuickSlashes(prev => prev.filter(item => item.id !== qs.id))}
+          isAwakened={isAwakened}
         />
       ))}
       
@@ -1134,6 +1143,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={b.pos} 
           direction={b.dir} 
           onFinish={() => setBlasts(prev => prev.filter(item => item.id !== b.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1231,6 +1241,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={de.pos} 
           rotation={de.rot} 
           onFinish={() => setDomainExpansions(prev => prev.filter(item => item.id !== de.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1284,6 +1295,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           key={fa.id} 
           position={fa.pos} 
           direction={fa.dir} 
+          isAwakened={isAwakened}
         />
       ))}
 

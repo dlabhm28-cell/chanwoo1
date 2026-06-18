@@ -211,11 +211,22 @@ export default function App() {
   const [phase2Cinematic, setPhase2Cinematic] = useState<{ pos: [number, number, number], active: boolean } | null>(null);
   const [combatSceneType, setCombatSceneType] = useState<'field' | 'castle' | 'shibuya'>('field');
 
+  const [isAwakened, setIsAwakened] = useState(false);
+  const isAwakenedRef = useRef(false);
+
+  useEffect(() => {
+    isAwakenedRef.current = isAwakened;
+  }, [isAwakened]);
+
   useEffect(() => {
     const handleExplosion = (e: any) => {
+      let mult = (e.detail.damageMultiplier || 1);
+      if (isAwakenedRef.current && e.detail.team !== 'enemy') {
+        mult *= 5;
+      }
       setExplosionEvent({
         ...e.detail,
-        damageMultiplier: e.detail.damageMultiplier || 1,
+        damageMultiplier: mult,
       });
       setTimeout(() => setExplosionEvent(null), 100);
     };
@@ -492,10 +503,23 @@ export default function App() {
          setTimeout(() => setSystemMessage(null), 3000);
       }
 
-      // 2. Shop Interaction
-      if (e.key.toLowerCase() === 'e' && scene === 'village' && !showShop && isStarted && Math.hypot(playerPos[0] - 15, playerPos[2] - -15) < 10) {
-        setShowShop(true);
-        document.exitPointerLock?.();
+      // 2. Shop Interaction & Awakening
+      if (e.key.toLowerCase() === 'e' && isStarted) {
+        if (scene === 'village' && !showShop && Math.hypot(playerPos[0] - 15, playerPos[2] - -15) < 10) {
+          setShowShop(true);
+          document.exitPointerLock?.();
+        } else if (scene === 'combat') {
+          setIsAwakened(prev => {
+            const next = !prev;
+            if (next) {
+              playSound('bassDrop');
+              setSystemMessage({ text: "우주적 각성! (Cosmic Awakening)", color: "#a855f7" });
+            } else {
+              setSystemMessage({ text: "각성 해제", color: "#ffffff" });
+            }
+            return next;
+          });
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -665,6 +689,7 @@ export default function App() {
               emitAttack={emitAttack}
               players={players}
               stats={stats}
+              isAwakened={isAwakened}
             />
             
             {ownedPets.map((p, i) => (
