@@ -13,6 +13,9 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
   const maxHealth = 300;
   const [health, setHealth] = useState(maxHealth);
   const [isDead, setIsDead] = useState(false);
+  const [onFire, setOnFire] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const stunTimer = useRef(0);
   
   const [ref, api] = useBox(() => ({
     mass: 10,
@@ -43,6 +46,14 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
       const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
       if (dist < explosionEvent.radius) {
          setHealth(prev => prev - 30 * (explosionEvent.damageMultiplier || 1));
+         
+         if ((explosionEvent as any).trait === 'fire' && Math.random() < 0.5) {
+             setOnFire(true);
+         }
+         if ((explosionEvent as any).trait === 'ice' && Math.random() < 0.3) {
+             setIsFrozen(true);
+             stunTimer.current = 180;
+         }
       }
     }
   }, [explosionEvent]);
@@ -71,8 +82,20 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
     }
   };
 
-  useFrame(() => {
+  useFrame((state) => {
     if ((window as any).isTimeStopped || isDead) return;
+    
+    if (onFire) {
+       if (state.clock.elapsedTime % 0.5 < 0.016) {
+           setHealth(prev => prev - 5);
+       }
+    }
+
+    if (stunTimer.current > 0) {
+      stunTimer.current--;
+      api.velocity.set(0, -5, 0);
+      return;
+    }
     
     // Move towards player slowly
     const dx = playerPos[0] - pos.current[0];
@@ -99,6 +122,18 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
          <boxGeometry args={[1.2, 0.1, 1.2]} />
          <meshStandardMaterial color="#222" metalness={0.9} />
       </mesh>
+      {onFire && (
+        <mesh position={[0, 0, 0]}>
+           <sphereGeometry args={[1.2, 8, 8]} />
+           <meshBasicMaterial color="#ff5500" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+        </mesh>
+      )}
+      {isFrozen && (
+        <mesh position={[0, 0, 0]}>
+           <boxGeometry args={[1.8, 1.8, 1.8]} />
+           <meshStandardMaterial color="#88ccff" transparent opacity={0.5} roughness={0} metalness={0.8} />
+        </mesh>
+      )}
     </mesh>
   );
 };

@@ -209,6 +209,12 @@ export default function App() {
   const [enemyDomains, setEnemyDomains] = useState<{ id: number; pos: [number, number, number]; rot: number }[]>([]);
   const [bossCinematic, setBossCinematic] = useState<{ pos: [number, number, number], playerPos: [number, number, number], active: boolean } | null>(null);
   const [phase2Cinematic, setPhase2Cinematic] = useState<{ pos: [number, number, number], active: boolean } | null>(null);
+  const [playerTrait, setPlayerTrait] = useState<'none'|'fire'|'ice'|'iron'|'assassin'>('none');
+  const [assassinSpeedStacks, setAssassinSpeedStacks] = useState(0);
+  const [ironDefenseStacks, setIronDefenseStacks] = useState(0);
+  const playerTraitRef = useRef(playerTrait);
+  useEffect(() => { playerTraitRef.current = playerTrait; }, [playerTrait]);
+
   const [combatSceneType, setCombatSceneType] = useState<'field' | 'castle' | 'shibuya'>('field');
 
   const [isAwakened, setIsAwakened] = useState(false);
@@ -227,8 +233,15 @@ export default function App() {
       setExplosionEvent({
         ...e.detail,
         damageMultiplier: mult,
+        trait: e.detail.team !== 'enemy' ? playerTraitRef.current : 'none'
       });
       setTimeout(() => setExplosionEvent(null), 100);
+
+      if (e.detail.team !== 'enemy') {
+        if (playerTraitRef.current === 'iron') {
+          setIronDefenseStacks(prev => prev + 1);
+        }
+      }
     };
     
     const handleBossHp = (e: any) => {
@@ -253,7 +266,10 @@ export default function App() {
     };
 
     const handlePlayerDamage = (e: any) => {
-      setHp(prev => Math.max(0, prev - (e.detail.amount || 1)));
+      setHp(prev => {
+         const defenseMult = 1 - Math.min(ironDefenseStacks * 0.01, 0.9);
+         return Math.max(0, prev - (e.detail.amount || 1) * defenseMult);
+      });
     };
 
     const handleExplosionDamageToPlayer = (e: any) => {
@@ -588,6 +604,10 @@ export default function App() {
   const handleKill = useCallback((e: any) => {
     const xpGain = e.detail.xp || 10;
     
+    if (playerTraitRef.current === 'assassin') {
+       setAssassinSpeedStacks(prev => prev + 1);
+    }
+    
     // Progress Kill Quest
     setActiveQuests(quests => quests.map(q => {
       if (q.type === 'kill_slime' && !completedQuests.includes(q.id)) {
@@ -688,7 +708,7 @@ export default function App() {
               emitMove={emitMove}
               emitAttack={emitAttack}
               players={players}
-              stats={stats}
+              stats={{...stats, agi: stats.agi + (playerTraitRef.current === 'assassin' ? assassinSpeedStacks * 2 : 0)}}
               isAwakened={isAwakened}
             />
             
@@ -1147,28 +1167,34 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className={`absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl ${lockCooldown ? 'pointer-events-none opacity-80' : 'pointer-events-auto cursor-pointer'}`}
-            onClick={async () => {
+            onClick={async (e) => {
+              if (playerTrait === 'none') return;
               // Wait at least 1.5 seconds since last unlock to prevent browser error
-              if (Date.now() - lastUnlockTime.current < 1500) {
+              if (Date.now() - lastUnlockTime.current < 2000) {
+                setSystemMessage({ text: "잠시 후 다시 클릭해주세요 (마우스 잠금 대기 중)", color: "#ffcc00" });
+                setTimeout(() => setSystemMessage(null), 1500);
                 return;
               }
               if (!lockCooldown && controlsRef.current && controlsRef.current.domElement) {
                 try {
-                  const promise = controlsRef.current.domElement.requestPointerLock();
+                  const promise = controlsRef.current.domElement.requestPointerLock({ unadjustedMovement: true }).catch((e) => {
+                    // Fallback if unadjustedMovement is not supported
+                    return controlsRef.current?.domElement.requestPointerLock();
+                  });
                   if (promise && promise.catch) {
                     promise.catch((e: any) => {
                       // Silently ignore remaining pointer lock errors or re-trigger cooldown
                       setLockCooldown(true);
                       lastUnlockTime.current = Date.now();
                       if (lockCooldownTimer.current) clearTimeout(lockCooldownTimer.current);
-                      lockCooldownTimer.current = setTimeout(() => setLockCooldown(false), 1500);
+                      lockCooldownTimer.current = setTimeout(() => setLockCooldown(false), 2000);
                     });
                   }
                 } catch (e) {
                   setLockCooldown(true);
                   lastUnlockTime.current = Date.now();
                   if (lockCooldownTimer.current) clearTimeout(lockCooldownTimer.current);
-                  lockCooldownTimer.current = setTimeout(() => setLockCooldown(false), 1500);
+                  lockCooldownTimer.current = setTimeout(() => setLockCooldown(false), 2000);
                 }
               }
             }}
@@ -1181,27 +1207,55 @@ export default function App() {
               >
                 슬라임 버스터 <span className="text-blue-500">보스 헌트</span>
               </motion.h1>
-              <div className="text-blue-400 font-bold mb-12 tracking-widest uppercase">
-                {lockCooldown ? "잠시 대기..." : (isStarted ? "클릭하여 전투 재개" : "클릭하여 전투 시작")}
-              </div>
               
-              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
-                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <div className="text-white/40 text-[10px] uppercase mb-1">이동</div>
-                  <div className="text-white font-bold">WASD / SPACE</div>
+              {playerTrait === 'none' ? (
+                <div className="pointer-events-auto mt-8 flex flex-col items-center">
+                  <div className="text-2xl font-bold text-white mb-6">시작 전 특성을 선택하세요</div>
+                  <div className="flex gap-4">
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('fire'); }} className="px-6 py-4 bg-red-600/80 hover:bg-red-500 text-white rounded-xl font-bold border border-red-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">🔥 불 속성</div>
+                      <div className="text-xs opacity-80">공격 시 50% 확률로 화상</div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('ice'); }} className="px-6 py-4 bg-blue-600/80 hover:bg-blue-500 text-white rounded-xl font-bold border border-blue-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">❄️ 얼음 속성</div>
+                      <div className="text-xs opacity-80">공격 시 30% 확률로 빙결</div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('iron'); }} className="px-6 py-4 bg-gray-600/80 hover:bg-gray-500 text-white rounded-xl font-bold border border-gray-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">🛡️ 철 속성</div>
+                      <div className="text-xs opacity-80">공격할 때마다 방어력 1% 증가</div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('assassin'); }} className="px-6 py-4 bg-purple-600/80 hover:bg-purple-500 text-white rounded-xl font-bold border border-purple-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">🗡️ 암살자 속성</div>
+                      <div className="text-xs opacity-80">몹 처치 시 속도 1 증가</div>
+                    </button>
+                  </div>
                 </div>
-                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <div className="text-white/40 text-[10px] uppercase mb-1">에너지 발사</div>
-                  <div className="text-white font-bold">마우스 클릭</div>
-                </div>
-                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <div className="text-white/40 text-[10px] uppercase mb-1">단검 / 발사</div>
-                  <div className="text-white font-bold">Q Key / LMB</div>
-                </div>
-                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <div className="text-white/40 text-[10px] uppercase mb-1">무량공처 (Unlimited Void)</div>
-                  <div className="text-white font-bold text-purple-400">K Key (50 EN)</div>
-                </div>
+              ) : (
+                <>
+                  <div className="text-blue-400 font-bold mb-12 tracking-widest uppercase">
+                    {lockCooldown ? "잠시 대기..." : (isStarted ? "클릭하여 전투 재개" : "클릭하여 전투 시작")}
+                  </div>
+                  <div className="text-green-400 font-bold mb-8 text-sm">
+                    선택된 특성: {playerTrait === 'fire' ? '🔥 불' : playerTrait === 'ice' ? '❄️ 얼음' : playerTrait === 'iron' ? '🛡️ 철' : '🗡️ 암살자'}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-white/40 text-[10px] uppercase mb-1">이동</div>
+                      <div className="text-white font-bold">WASD / SPACE</div>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-white/40 text-[10px] uppercase mb-1">에너지 발사</div>
+                      <div className="text-white font-bold">마우스 클릭</div>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-white/40 text-[10px] uppercase mb-1">단검 / 발사</div>
+                      <div className="text-white font-bold">Q Key / LMB</div>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-white/40 text-[10px] uppercase mb-1">무량공처 (Unlimited Void)</div>
+                      <div className="text-white font-bold text-purple-400">K Key (50 EN)</div>
+                    </div>
                 <div className="bg-white/5 p-4 rounded-xl border border-white/10">
                   <div className="text-white/40 text-[10px] uppercase mb-1">공간참 (Space Cleave)</div>
                   <div className="text-white font-bold text-red-500">O Key (50 EN)</div>
@@ -1239,6 +1293,8 @@ export default function App() {
                   <div className="text-white font-bold">ENTER (80%)</div>
                 </div>
               </div>
+              </>
+            )}
             </div>
 
           </motion.div>

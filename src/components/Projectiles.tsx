@@ -92,7 +92,7 @@ export const EnergyBlast = ({ position, direction, onFinish, isAwakened = false 
 
 
 
-export const WindEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+export const WindEffect = ({ position, onFinish, isAwakened = false }: { position: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const ref = useRef<THREE.Group>(null);
   const [opacity, setOpacity] = useState(1);
   const [isYinYang] = useState(() => Math.random() < 0.1);
@@ -192,7 +192,7 @@ export const WindEffect = ({ position, onFinish }: { position: [number, number, 
 
 
 
-export const Explosion = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+export const Explosion = ({ position, onFinish, isAwakened = false }: { position: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const ref = useRef<THREE.Mesh>(null);
   const [scale, setScale] = useState(0.1);
   const [opacity, setOpacity] = useState(1);
@@ -221,10 +221,11 @@ export const Explosion = ({ position, onFinish }: { position: [number, number, n
 
 const energyIntensity = (opacity: number) => opacity * 50;
 
-export const Dagger = ({ position, direction, onFinish }: { 
+export const Dagger = ({ position, direction, onFinish, isAwakened = false }: { 
   position: [number, number, number], 
   direction: [number, number, number],
-  onFinish: (hitPos: [number, number, number]) => void 
+  onFinish: (hitPos: [number, number, number]) => void,
+  isAwakened?: boolean
 }) => {
   const currentPos = useRef(position);
   const [ref, api] = useSphere(() => ({
@@ -273,29 +274,35 @@ export const Dagger = ({ position, direction, onFinish }: {
     if (Date.now() - startTime.current > 2000) onFinish(currentPos.current);
   });
 
+  const baseColor = isAwakened ? "#c084fc" : "#cbd5e1";
+  const darkColor = isAwakened ? "#581c87" : "#94a3b8";
+
   return (
     <mesh ref={ref as any} rotation={rotationRef.current}>
+      {isAwakened && (
+        <pointLight color="#a855f7" intensity={5} distance={10} />
+      )}
       <group rotation={[0, 0, 0]}>
         {/* Blade - Kunai Style */}
         <group position={[0, 0.25, 0]}>
           {/* Tip */}
           <mesh position={[0, 0.25, 0]}>
             <coneGeometry args={[0.12, 0.45, 4]} />
-            <meshStandardMaterial color="#cbd5e1" metalness={1} roughness={0.3} />
+            <meshStandardMaterial color={baseColor} emissive={isAwakened ? "#7e22ce" : "#000000"} metalness={1} roughness={0.3} />
           </mesh>
           {/* Central spine */}
           <mesh position={[0, 0, 0]}>
             <boxGeometry args={[0.04, 0.5, 0.04]} />
-            <meshStandardMaterial color="#94a3b8" metalness={1} roughness={0.4} />
+            <meshStandardMaterial color={darkColor} metalness={1} roughness={0.4} />
           </mesh>
           {/* Outer cutting edges with cutout look */}
           <mesh position={[0.1, 0, 0]}>
             <boxGeometry args={[0.06, 0.4, 0.02]} />
-            <meshStandardMaterial color="#cbd5e1" metalness={1} roughness={0.2} />
+            <meshStandardMaterial color={baseColor} emissive={isAwakened ? "#7e22ce" : "#000000"} metalness={1} roughness={0.2} />
           </mesh>
           <mesh position={[-0.1, 0, 0]}>
             <boxGeometry args={[0.06, 0.4, 0.02]} />
-            <meshStandardMaterial color="#cbd5e1" metalness={1} roughness={0.2} />
+            <meshStandardMaterial color={baseColor} emissive={isAwakened ? "#7e22ce" : "#000000"} metalness={1} roughness={0.2} />
           </mesh>
           {/* Connection base */}
           <mesh position={[0, -0.2, 0]}>
@@ -329,10 +336,11 @@ export const Dagger = ({ position, direction, onFinish }: {
   );
 };
 
-export const Bomb = ({ position, direction, onExplode }: { 
+export const Bomb = ({ position, direction, onExplode, isAwakened = false }: { 
   position: [number, number, number], 
   direction: [number, number, number],
-  onExplode: (pos: [number, number, number]) => void 
+  onExplode: (pos: [number, number, number]) => void,
+  isAwakened?: boolean
 }) => {
   const hasExploded = useRef(false);
   const currentPos = useRef(position);
@@ -400,14 +408,18 @@ export const Bomb = ({ position, direction, onExplode }: {
     };
   }, [api, direction, onExplode]);
 
+  const bodyColor = isAwakened ? "#2e1065" : "#121212";
+  const glowColor = isAwakened ? "#d8b4fe" : "#ff0000";
+  const fuseColor = isAwakened ? "#a855f7" : "#ffaa00";
+
   return (
     <mesh ref={ref as any}>
       <sphereGeometry args={[0.4, 24, 24]} />
       <meshStandardMaterial 
-        color="#121212" 
+        color={bodyColor} 
         metalness={0.8}
         roughness={0.2}
-        emissive="#ff0000" 
+        emissive={glowColor} 
         emissiveIntensity={Math.sin(Date.now() * 0.1) * 3 + 4} 
       />
       {/* Fuse detail */}
@@ -417,7 +429,7 @@ export const Bomb = ({ position, direction, onExplode }: {
       </mesh>
       <mesh position={[0, 0.55, 0]}>
         <sphereGeometry args={[0.03, 8, 8]} />
-        <meshStandardMaterial color="#ffaa00" emissive="#ffaa00" emissiveIntensity={10} />
+        <meshStandardMaterial color={fuseColor} emissive={fuseColor} emissiveIntensity={10} />
       </mesh>
     </mesh>
   );
@@ -453,7 +465,7 @@ export const SpiritBombVisual = ({ position, intStat = 0 }: { position: [number,
   );
 };
 
-export const WindStorm = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+export const WindStorm = ({ position, onFinish, isAwakened = false }: { position: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const ref = useRef<THREE.Group>(null);
   const [opacity, setOpacity] = useState(1);
   const [scale, setScale] = useState(1);
@@ -491,10 +503,11 @@ export const WindStorm = ({ position, onFinish }: { position: [number, number, n
   );
 };
 
-export const GiantKatana = ({ position, rotation, onFinish }: { 
+export const GiantKatana = ({ position, rotation, onFinish, isAwakened = false }: { 
   position: [number, number, number], 
   rotation: number,
-  onFinish: () => void 
+  onFinish: () => void,
+  isAwakened?: boolean
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [progress, setProgress] = useState(0);
@@ -515,13 +528,17 @@ export const GiantKatana = ({ position, rotation, onFinish }: {
           sweepPos.add(new THREE.Vector3(...position));
           
           window.dispatchEvent(new CustomEvent('bombExplode', { 
-            detail: { pos: [sweepPos.x, sweepPos.y, sweepPos.z], radius: 150, damageMultiplier: 40 } // Increased radius and added 40x damage multiplier
+            detail: { pos: [sweepPos.x, sweepPos.y, sweepPos.z], radius: 150, damageMultiplier: isAwakened ? 200 : 40 } // Increased radius and added 40x damage multiplier
           }));
         });
       }
     }
     if (progress >= 1) onFinish();
   });
+
+  const baseColor = isAwakened ? "#e879f9" : "#ffffff";
+  const glowColor = isAwakened ? "#7e22ce" : "#00ffff";
+  const lightColor = isAwakened ? "#a855f7" : "#00ffff";
 
   return (
     <group ref={groupRef} position={position}>
@@ -530,8 +547,8 @@ export const GiantKatana = ({ position, rotation, onFinish }: {
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[4, 15, 500]} />
           <meshStandardMaterial 
-            color="#ffffff" 
-            emissive="#00ffff" 
+            color={baseColor} 
+            emissive={glowColor} 
             emissiveIntensity={40 * (1 - progress)} 
             transparent 
             opacity={0.9 * (1 - progress)} 
@@ -541,7 +558,7 @@ export const GiantKatana = ({ position, rotation, onFinish }: {
         <mesh position={[0, 0, 0]} rotation={[0, 0.05, 0]}>
           <boxGeometry args={[5, 18, 510]} />
           <meshStandardMaterial 
-            color="#00ffff" 
+            color={glowColor} 
             transparent 
             opacity={0.4 * (1 - progress)} 
           />
@@ -549,21 +566,22 @@ export const GiantKatana = ({ position, rotation, onFinish }: {
         {/* Glow Sphere at base */}
         <mesh position={[0, 0, 250]}>
           <sphereGeometry args={[10, 16, 16]} />
-          <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={50} />
+          <meshStandardMaterial color={glowColor} emissive={glowColor} emissiveIntensity={50} />
         </mesh>
       </group>
-      <pointLight color="#00ffff" intensity={400 * (1 - progress)} distance={400} />
+      <pointLight color={lightColor} intensity={400 * (1 - progress)} distance={400} />
     </group>
   );
 };
 
-export const LightningStrike = ({ position, isPowerful, isUltimate, isRainbow, forceColor, onFinish }: { 
+export const LightningStrike = ({ position, isPowerful, isUltimate, isRainbow, forceColor, onFinish, isAwakened = false }: { 
   position: [number, number, number], 
   isPowerful?: boolean,
   isUltimate?: boolean,
   isRainbow?: boolean,
   forceColor?: string,
-  onFinish: () => void 
+  onFinish: () => void,
+  isAwakened?: boolean
 }) => {
   const [opacity, setOpacity] = useState(1);
   const ref = useRef<THREE.Group>(null);
@@ -646,10 +664,11 @@ export const LightningStrike = ({ position, isPowerful, isUltimate, isRainbow, f
   );
 };
 
-export const SniperBullet = ({ position, direction, onFinish }: { 
+export const SniperBullet = ({ position, direction, onFinish, isAwakened = false }: { 
   position: [number, number, number], 
   direction: [number, number, number],
-  onFinish: (hitPos: [number, number, number], hitSomething: boolean, isFinal: boolean) => void 
+  onFinish: (hitPos: [number, number, number], hitSomething: boolean, isFinal: boolean) => void,
+  isAwakened?: boolean
 }) => {
   const currentPos = useRef(position);
   const isDead = useRef(false);
@@ -753,15 +772,19 @@ export const SniperBullet = ({ position, direction, onFinish }: {
   const dirVec = useMemo(() => new THREE.Vector3(...direction).normalize(), [direction]);
   const initialQuaternion = useMemo(() => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec), [dirVec]);
 
+  const coreColor = isAwakened ? "#e879f9" : "#ff3333";
+  const glowColor = isAwakened ? "#a855f7" : "#ff0000";
+  const trailColor = isAwakened ? "#7e22ce" : "#ff4444";
+
   return (
     <group ref={ref as any}>
       <mesh quaternion={initialQuaternion}>
         <sphereGeometry args={[0.04, 8, 8]} />
-        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={100} />
+        <meshStandardMaterial color={coreColor} emissive={glowColor} emissiveIntensity={100} />
       </mesh>
       <mesh quaternion={initialQuaternion} position={[0, -1.5, 0]}>
         <cylinderGeometry args={[0.005, 0.02, 3, 4]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.8} />
+        <meshBasicMaterial color={trailColor} transparent opacity={0.8} />
       </mesh>
     </group>
   );
@@ -1955,7 +1978,7 @@ const VoidBlackhole = ({ fadeOpacity }: { fadeOpacity: number }) => {
   );
 };
 
-export const UnlimitedVoidEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+export const UnlimitedVoidEffect = ({ position, onFinish, isAwakened = false }: { position: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const timer = useRef(0);
   const [radius, setRadius] = useState(0.1);
   const [fadeOpacity, setFadeOpacity] = useState(1);
@@ -2080,7 +2103,7 @@ export const ShatteredGlass = ({ position, onFinish }: { position: [number, numb
 };
 
 
-export const TimeCellMoonPalaceEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+export const TimeCellMoonPalaceEffect = ({ position, onFinish, isAwakened = false }: { position: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [active, setActive] = useState(true);
   const timer = useRef(0);
@@ -2174,7 +2197,7 @@ export const TimeCellMoonPalaceEffect = ({ position, onFinish }: { position: [nu
     </group>
   );
 };
-export const SelfEmbodimentofPerfectionEffect = ({ position, rotation, onFinish }: { position: [number, number, number], rotation: number, onFinish: () => void }) => {
+export const SelfEmbodimentofPerfectionEffect = ({ position, rotation, onFinish, isAwakened = false }: { position: [number, number, number], rotation: number, onFinish: () => void, isAwakened?: boolean }) => {
   const groupRef = useRef<THREE.Group>(null);
   const flowerRef = useRef<THREE.Group>(null);
   const sphereRef = useRef<THREE.Mesh>(null);
@@ -2379,7 +2402,7 @@ export const SelfEmbodimentofPerfectionEffect = ({ position, rotation, onFinish 
   );
 };
 
-export const SpaceCleaveEffect = ({ position, rotation, onFinish }: { position: [number, number, number], rotation: number, onFinish: () => void }) => {
+export const SpaceCleaveEffect = ({ position, rotation, onFinish, isAwakened = false }: { position: [number, number, number], rotation: number, onFinish: () => void, isAwakened?: boolean }) => {
   const groupRef = useRef<THREE.Group>(null);
   const timer = useRef(0);
 
@@ -2423,7 +2446,7 @@ export const SpaceCleaveEffect = ({ position, rotation, onFinish }: { position: 
   );
 };
 
-export const HollowPurpleEffect = ({ position, direction, onFinish }: { position: [number, number, number], direction: [number, number, number], onFinish: () => void }) => {
+export const HollowPurpleEffect = ({ position, direction, onFinish, isAwakened = false }: { position: [number, number, number], direction: [number, number, number], onFinish: () => void, isAwakened?: boolean }) => {
   const groupRef = useRef<THREE.Group>(null);
   const orbRef = useRef<THREE.Mesh>(null);
   const auraRef = useRef<THREE.Mesh>(null);

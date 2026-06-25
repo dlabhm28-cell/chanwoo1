@@ -42,6 +42,9 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
   const [isFramed, setIsFramed] = useState(false);
   const voidTimer = useRef(0);
   const [isVoided, setIsVoided] = useState(false);
+  const [onFire, setOnFire] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+
   useEffect(() => {
     if (explosionEvent) {
       if (explosionEvent.team === 'enemy') return;
@@ -66,6 +69,14 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
           const damage = (1 - dist / explosionEvent.radius) * 150 * (explosionEvent.damageMultiplier || 1);
           setHealth(prev => Math.max(0, prev - damage));
 
+          if ((explosionEvent as any).trait === 'fire' && Math.random() < 0.5) {
+             setOnFire(true);
+          }
+          if ((explosionEvent as any).trait === 'ice' && Math.random() < 0.3) {
+             setIsFrozen(true);
+             stunTimer.current = 180;
+          }
+
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
             stunTimer.current = 60;
@@ -84,6 +95,12 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
   const [skyEyes, setSkyEyes] = useState<{ id: number; pos: [number, number, number] }[]>([]);
 
   useFrame((state, delta) => {
+    if (onFire) {
+       if (state.clock.elapsedTime % 0.5 < 0.016) {
+           setHealth(prev => prev - 15);
+       }
+    }
+
     if (transforming) {
       api.velocity.set(0, 0, 0);
       transformTimer.current += delta;
@@ -246,6 +263,19 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
         {phase === 1 && !transforming && <BossPhase1Visual isFramed={isFramed} />}
         {transforming && <BossTransformationVisual isFramed={isFramed} />}
         {phase === 2 && !transforming && <BossSukunaVisual isFramed={isFramed} />}
+
+        {onFire && (
+          <mesh position={[0, 4, 0]}>
+             <sphereGeometry args={[4, 16, 16]} />
+             <meshBasicMaterial color="#ff5500" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+          </mesh>
+        )}
+        {isFrozen && (
+          <mesh position={[0, 4, 0]}>
+             <boxGeometry args={[8, 8, 8]} />
+             <meshStandardMaterial color="#88ccff" transparent opacity={0.5} roughness={0} metalness={0.8} />
+          </mesh>
+        )}
 
         {/* Beam Visuals */}
         {beams.map(b => (

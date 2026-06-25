@@ -9,7 +9,6 @@ import { ItemDrop, ItemType } from './ItemDrop';
 import { RobloxCharacter } from './RobloxCharacter';
 import { CrackleEffect } from './Projectiles';
 
-import { Splitter } from './Splitter';
 import { Bomber } from './Bomber';
 import { Armored } from './Armored';
 
@@ -21,7 +20,7 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
   playerRot: [number, number, number],
   hasAIPartner?: boolean
 }) => {
-  const [enemies, setEnemies] = useState<{ id: number; type: 'slime' | 'skeleton' | 'boss' | 'bomber' | 'armored' | 'splitter' | 'splitter_small'; position: [number, number, number], isKing: boolean }[]>([]);
+  const [enemies, setEnemies] = useState<{ id: number; type: 'slime' | 'skeleton' | 'boss' | 'bomber' | 'armored'; position: [number, number, number], isKing: boolean }[]>([]);
   const [allies, setAllies] = useState<{ id: number; type: 'alliedSlime' | 'alliedSkeleton' | 'alliedAI'; position: [number, number, number] }[]>([]);
   const [drops, setDrops] = useState<{ id: number; type: ItemType; position: [number, number, number] }[]>([]);
   const [ashEffects, setAshEffects] = useState<{ id: number; position: [number, number, number] }[]>([]);
@@ -71,21 +70,9 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
       });
     };
 
-    // Add SplitEnemy listener
-    const handleSplitEnemy = (e: any) => {
-       const { pos } = e.detail;
-       setEnemies(prev => [
-         ...prev,
-         { id: Math.random() * 1000000 + Date.now(), type: 'splitter_small', position: [pos[0] + 1, 2, pos[2]], isKing: false },
-         { id: Math.random() * 1000000 + Date.now() + 1, type: 'splitter_small', position: [pos[0] - 1, 2, pos[2]], isKing: false }
-       ]);
-    };
-    window.addEventListener('splitEnemy', handleSplitEnemy);
-
     window.addEventListener('transfigureEnemies', handleTransfigure);
     return () => {
       window.removeEventListener('transfigureEnemies', handleTransfigure);
-      window.removeEventListener('splitEnemy', handleSplitEnemy);
     };
   }, []);
 
@@ -109,11 +96,10 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
       const z = state.camera.position.z + Math.sin(angle) * dist;
       
       const rand = Math.random();
-      let type: 'slime' | 'skeleton' | 'bomber' | 'armored' | 'splitter' = 'slime';
+      let type: 'slime' | 'skeleton' | 'bomber' | 'armored' = 'slime';
       if (scoreRef.current > 5) {
          if (rand < 0.2) type = 'bomber';
          else if (rand < 0.4) type = 'armored';
-         else if (rand < 0.6) type = 'splitter';
          else if (rand < 0.8) type = 'skeleton';
       } else {
          if (scoreRef.current > 15 && rand > 0.6) type = 'skeleton';
@@ -146,8 +132,7 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
     
     let xp = 15;
     if (type === 'skeleton') xp = 35;
-    else if (type === 'bomber' || type === 'splitter_small') xp = 20;
-    else if (type === 'splitter') xp = 30;
+    else if (type === 'bomber') xp = 20;
     else if (type === 'armored') xp = 50;
     if (type === 'boss') xp = 1000;
     if (isKing) xp = 60;
@@ -233,8 +218,6 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
         if (e.type === 'skeleton') CurrentEnemy = Skeleton;
         else if (e.type === 'bomber') CurrentEnemy = Bomber;
         else if (e.type === 'armored') CurrentEnemy = Armored;
-        else if (e.type === 'splitter') CurrentEnemy = Splitter;
-        else if (e.type === 'splitter_small') CurrentEnemy = (props: any) => <Splitter {...props} isSmall={true} />;
         else if (e.type === 'boss') CurrentEnemy = BossDemon;
 
         return (

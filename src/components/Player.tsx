@@ -1153,6 +1153,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={d.pos} 
           direction={d.dir} 
           onFinish={(hitPos) => handleDaggerFinish(d.id, hitPos)} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1162,6 +1163,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={bm.pos} 
           direction={bm.dir} 
           onExplode={(explodePos) => explodeBomb(bm.id, explodePos)} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1170,6 +1172,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           key={e.id} 
           position={e.pos} 
           onFinish={() => setExplosions(prev => prev.filter(item => item.id !== e.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1178,6 +1181,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           key={w.id} 
           position={w.pos} 
           onFinish={() => setWindEffects(prev => prev.filter(item => item.id !== w.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1190,6 +1194,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           isRainbow={l.isRainbow}
           forceColor={l.forceColor}
           onFinish={() => setLightnings(prev => prev.filter(item => item.id !== l.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1198,6 +1203,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           key={ws.id} 
           position={ws.pos} 
           onFinish={() => setWindStorms(prev => prev.filter(item => item.id !== ws.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1207,6 +1213,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={gk.pos} 
           rotation={gk.rot} 
           onFinish={() => setGiantKatanas(prev => prev.filter(item => item.id !== gk.id))} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1226,12 +1233,14 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
               // Sniper damage
               const strMultiplier = 1 + (stats?.str || 0) * 0.1;
               const intMultiplier = 1 + (stats?.int || 0) * 0.05;
+              const damageMult = isAwakened ? 8 * strMultiplier * 5 : 8 * strMultiplier;
               const event = new CustomEvent('bombExplode', { 
-                detail: { pos: hitPos, radius: 4 * intMultiplier, damageMultiplier: 8 * strMultiplier, team: 'player' } 
+                detail: { pos: hitPos, radius: 4 * intMultiplier, damageMultiplier: damageMult, team: 'player' } 
               });
               window.dispatchEvent(event);
             }
           }} 
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1251,6 +1260,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={se.pos}
           rotation={se.rot}
           onFinish={() => setSelfEmbodiments(prev => prev.filter(item => item.id !== se.id))}
+          isAwakened={isAwakened}
         />
       ))}
       {timeCells.map((tc) => (
@@ -1258,6 +1268,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           key={tc.id}
           position={tc.pos}
           onFinish={() => setTimeCells(prev => prev.filter(item => item.id !== tc.id))}
+          isAwakened={isAwakened}
         />
       ))}
       {spaceCleaves.map((sc) => (
@@ -1266,6 +1277,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={sc.pos}
           rotation={sc.rot}
           onFinish={() => setSpaceCleaves(prev => prev.filter(item => item.id !== sc.id))}
+          isAwakened={isAwakened}
         />
       ))}
       {hollowPurples.map((hp) => (
@@ -1274,6 +1286,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           position={hp.pos}
           direction={hp.dir}
           onFinish={() => setHollowPurples(prev => prev.filter(item => item.id !== hp.id))}
+          isAwakened={isAwakened}
         />
       ))}
 
@@ -1287,6 +1300,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
             voidDashTimer.current = 0;
             window.dispatchEvent(new CustomEvent('voidDashStart'));
           }}
+          isAwakened={isAwakened}
         />
       ))}
 

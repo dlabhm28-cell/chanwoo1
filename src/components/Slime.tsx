@@ -18,6 +18,8 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
   const [isFramed, setIsFramed] = useState(false);
   const voidTimer = useRef(0);
   const [isVoided, setIsVoided] = useState(false);
+  const [onFire, setOnFire] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
   
   const [ref, api] = useSphere(() => ({
     mass: isKing ? 50 : 1,
@@ -76,6 +78,14 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
           const damage = (1 - dist / explosionEvent.radius) * 300 * (explosionEvent.damageMultiplier || 1);
           setHealth(prev => prev - damage);
           
+          if ((explosionEvent as any).trait === 'fire' && Math.random() < 0.5) {
+             setOnFire(true);
+          }
+          if ((explosionEvent as any).trait === 'ice' && Math.random() < 0.3) {
+             setIsFrozen(true);
+             stunTimer.current = 180;
+          }
+          
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
             stunTimer.current = 60;
@@ -100,6 +110,11 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
   }, [health, isKing, maxHealth]);
 
   useFrame((state) => {
+    if (onFire) {
+       if (state.clock.elapsedTime % 0.5 < 0.016) {
+           setHealth(prev => prev - 5);
+       }
+    }
     if ((window as any).isTimeStopped || voidTimer.current > 0) {
       if (voidTimer.current > 0) {
         voidTimer.current--;
@@ -206,6 +221,19 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
             metalness={isFramed ? 0.9 : 0.2} 
           />
         </mesh>
+
+        {onFire && (
+          <mesh position={[0, 0, 0]}>
+             <sphereGeometry args={[0.7, 8, 8]} />
+             <meshBasicMaterial color="#ff5500" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+          </mesh>
+        )}
+        {isFrozen && (
+          <mesh position={[0, 0, 0]}>
+             <boxGeometry args={[1.5, 1.5, 1.5]} />
+             <meshStandardMaterial color="#88ccff" transparent opacity={0.5} roughness={0} metalness={0.8} />
+          </mesh>
+        )}
         
         <mesh position={[0.2, 0.2, 0.5]}>
           <boxGeometry args={[0.1, 0.1, 0.1]} />

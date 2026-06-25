@@ -16,6 +16,8 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
   const [isFramed, setIsFramed] = useState(false);
   const voidTimer = useRef(0);
   const [isVoided, setIsVoided] = useState(false);
+  const [onFire, setOnFire] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
   const meshRef = useRef<THREE.Group>(null);
   const pos = useRef([0, 0, 0]);
   
@@ -63,6 +65,14 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
           const damage = (1 - dist / explosionEvent.radius) * 400 * (explosionEvent.damageMultiplier || 1);
           setHealth(prev => prev - damage);
 
+          if ((explosionEvent as any).trait === 'fire' && Math.random() < 0.5) {
+             setOnFire(true);
+          }
+          if ((explosionEvent as any).trait === 'ice' && Math.random() < 0.3) {
+             setIsFrozen(true);
+             stunTimer.current = 180;
+          }
+
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
             stunTimer.current = 60;
@@ -77,6 +87,11 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
   }, [explosionEvent, isFramed]);
 
   useFrame((state) => {
+    if (onFire) {
+       if (state.clock.elapsedTime % 0.5 < 0.016) {
+           setHealth(prev => prev - 5);
+       }
+    }
     if ((window as any).isTimeStopped || voidTimer.current > 0) {
       if (voidTimer.current > 0) {
         voidTimer.current--;
@@ -156,6 +171,18 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
           <group position={[0, 0.5, 0]}>
             <FreezeFrame2D width={1.8} height={1.8} zDepth={0.25} />
           </group>
+        )}
+        {onFire && (
+          <mesh position={[0, 0.5, 0]}>
+             <sphereGeometry args={[0.8, 8, 8]} />
+             <meshBasicMaterial color="#ff5500" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+          </mesh>
+        )}
+        {isFrozen && (
+          <mesh position={[0, 0.5, 0]}>
+             <boxGeometry args={[1.2, 1.8, 1.2]} />
+             <meshStandardMaterial color="#88ccff" transparent opacity={0.5} roughness={0} metalness={0.8} />
+          </mesh>
         )}
         <VoxelPart p={[0, 0.4, 0]} s={[0.4, 0.6, 0.2]} c="#e2e8f0" />
         <VoxelPart p={[0, 0.9, 0]} s={[0.5, 0.5, 0.5]} c="#f8fafc" />
