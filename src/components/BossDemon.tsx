@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Line } from '@react-three/drei';
 import { FreezeFrame2D, VoidSymbols } from './Projectiles';
 
-export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent }: any) => {
+export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent, isImprisoned = false }: any) => {
   const [phase, setPhase] = useState(1);
   const [transforming, setTransforming] = useState(false);
   const maxHealth = phase === 1 ? 5000 : 8000;
@@ -76,6 +76,12 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
              setIsFrozen(true);
              stunTimer.current = 180;
           }
+          if ((explosionEvent as any).trait === 'vampire' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('playerHeal', { detail: { amount: damage * 0.2 } }));
+          }
+          if ((explosionEvent as any).trait === 'lightning' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('lightningHit'));
+          }
 
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
@@ -120,7 +126,7 @@ export const BossDemon = ({ position, onDie, isSpiritBombActive, explosionEvent 
       return;
     }
 
-    if ((window as any).isTimeStopped || voidTimer.current > 0) {
+    if ((window as any).isTimeStopped || voidTimer.current > 0 || isImprisoned) {
       if (voidTimer.current > 0) {
         voidTimer.current--;
         if (voidTimer.current <= 0) setIsVoided(false);

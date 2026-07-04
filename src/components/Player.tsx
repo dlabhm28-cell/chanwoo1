@@ -10,7 +10,7 @@ import { RobloxCharacter } from './RobloxCharacter';
 const SPEED = 5;
 const JUMP_FORCE = 4;
 
-export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats, isAwakened = false }: { 
+export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats, isAwakened = false, isBerserk = false, pigStacks = 0, isLightningAura = false, sizeModifier = 1, isFlying = false, isImprisoned = false, isSlime = false, hasShield = false, noCooldown = false, isInvisible = false, isChicken = false, isRagdoll = false, isForcedDance = false }: { 
   onShoot: () => void, 
   onThrowBomb: () => void,
   onUseEnergy?: (amount: number) => void,
@@ -22,7 +22,20 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   emitAttack: (type: string, data: any) => void,
   players: any[],
   stats: any,
-  isAwakened?: boolean
+  isAwakened?: boolean,
+  isBerserk?: boolean,
+  pigStacks?: number,
+  isLightningAura?: boolean,
+  sizeModifier?: number,
+  isFlying?: boolean,
+  isImprisoned?: boolean,
+  isSlime?: boolean,
+  hasShield?: boolean,
+  noCooldown?: boolean,
+  isInvisible?: boolean,
+  isChicken?: boolean,
+  isRagdoll?: boolean,
+  isForcedDance?: boolean
 }) => {
   const { camera } = useThree();
   const { forward, backward, left, right, jump, spiritBomb, dagger, bomb, charge, weapon1, weapon2, weapon3, weapon4, weapon5, weapon6, weapon7, weapon8, weapon9, weapon0, sniper, domain, fuga, theWorld, summon, barrier, dashAttack, blackFlash, frameFreeze, unlimitedVoid, selfEmbodiment, timeCellMoonPalace, spaceCleave, hollowPurple } = useControls();
@@ -103,6 +116,10 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   const [isThirdPerson, setIsThirdPerson] = useState(false);
 
   useEffect(() => {
+    if (isChicken || isRagdoll || isForcedDance) setIsThirdPerson(true);
+  }, [isChicken, isRagdoll, isForcedDance]);
+
+  useEffect(() => {
     const handleShatter = (e: any) => {
       setShatters(prev => [...prev, { id: Math.random() * 100000 + Date.now(), pos: e.detail.pos }]);
     };
@@ -163,7 +180,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   };
 
   const fireSpaceCleave = () => {
-    if (energy < 50) return;
+    if (!noCooldown && energy < 50) return;
     if (onUseEnergy) onUseEnergy(50);
     window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "공간참! (World Bisecting Slash)", color: "#ff0044" } }));
     
@@ -807,11 +824,18 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
       api.velocity.set(0, 0, 0);
     };
 
+    const handleAdminPull = (e: any) => {
+      api.position.set(e.detail.pos[0], e.detail.pos[1] + 2, e.detail.pos[2]);
+      api.velocity.set(0, 0, 0);
+    };
+
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('resetPosition', handleResetPosition);
+    window.addEventListener('adminPull', handleAdminPull);
     return () => {
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('resetPosition', handleResetPosition);
+      window.removeEventListener('adminPull', handleAdminPull);
     };
   }, [energy]);
 
@@ -880,6 +904,24 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   // Track un-dash timeout
   const timeSinceLastDash = useRef(0);
 
+  useEffect(() => {
+    if (isForcedDance) {
+      const type = Math.floor(Math.random() * 5) + 1;
+      setDanceType(type);
+      emitMove(
+        [pos.current[0], pos.current[1], pos.current[2]],
+        [camera.rotation.x, camera.rotation.y, camera.rotation.z],
+        type
+      );
+    }
+  }, [isForcedDance]);
+
+  useEffect(() => {
+    if (isChicken) {
+      setDanceType(0);
+    }
+  }, [isChicken]);
+
   useFrame((state, delta) => {
     const { camera: currentCamera } = state;
     if (!currentCamera) return;
@@ -909,10 +951,12 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
         voidDashTimer.current = 0;
         window.dispatchEvent(new CustomEvent('voidDashEnd'));
       }
-    } else if ((window as any).isCinematic) {
+    } else if ((window as any).isCinematic || isImprisoned || isRagdoll || isForcedDance) {
        // Freeze velocity
        api.velocity.set(0, velocity.current[1], 0);
-       return; // SKIP CAMERA OVERRIDE
+       if ((window as any).isCinematic) {
+         return; // SKIP CAMERA OVERRIDE
+       }
     } else {
       if (!isDashing.current && dashCombo.current > 0) {
         timeSinceLastDash.current += 1;
@@ -977,10 +1021,14 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           .multiplyScalar(moveSpeed)
           .applyEuler(cameraRotation);
 
-        api.velocity.set(direction.x, velocity.current[1], direction.z);
+        if (isFlying) {
+          api.velocity.set(direction.x, (jump ? JUMP_FORCE : 0) + (backward ? -JUMP_FORCE : 0), direction.z); // use jump/crouch for flight altitude, or just direction
+        } else {
+          api.velocity.set(direction.x, velocity.current[1], direction.z);
 
-        if (jump && Math.abs(velocity.current[1]) < 0.1) {
-          api.velocity.set(velocity.current[0], JUMP_FORCE, velocity.current[2]);
+          if (jump && Math.abs(velocity.current[1]) < 0.1) {
+            api.velocity.set(velocity.current[0], JUMP_FORCE, velocity.current[2]);
+          }
         }
       }
     }
@@ -1037,14 +1085,74 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           opacity={0} 
           transparent 
         />
-        <RobloxCharacter playerId={"local"} danceType={danceType} visible={danceType !== 0 || isThirdPerson} position={[0, -0.4, 0]} isLocalPlayer={true} scale={0.65} />
-        {isAwakened && (
-          <mesh visible={isThirdPerson || danceType !== 0}>
-             <sphereGeometry args={[1, 16, 16]} />
-             <meshStandardMaterial color="#8b5cf6" emissive="#3b0764" emissiveIntensity={5} wireframe transparent opacity={0.6} />
-             <pointLight color="#a855f7" intensity={5} distance={10} />
-          </mesh>
-        )}
+        <group 
+          scale={(1.0 + (pigStacks || 0) * 0.1) * (sizeModifier || 1)}
+          rotation={isRagdoll ? [Math.PI / 2, 0, 0] : [0, 0, 0]}
+          position={isRagdoll ? [0, -0.4, 0] : [0, 0, 0]}
+        >
+          <RobloxCharacter playerId={"local"} danceType={danceType} visible={!isInvisible && !isSlime && !isChicken && (danceType !== 0 || isThirdPerson || isRagdoll)} position={[0, -0.4, 0]} isLocalPlayer={true} scale={0.65} />
+          
+          {isSlime && !isInvisible && (
+            <mesh visible={danceType !== 0 || isThirdPerson || isRagdoll} position={[0, -0.2, 0]}>
+              <sphereGeometry args={[0.6, 16, 16]} />
+              <meshStandardMaterial color="#4ade80" transparent opacity={0.8} />
+            </mesh>
+          )}
+
+          {isChicken && !isInvisible && (
+            <group visible={danceType !== 0 || isThirdPerson || isRagdoll} position={[0, -0.2, 0]}>
+               {/* Body */}
+               <mesh position={[0, 0, 0]}>
+                 <boxGeometry args={[0.6, 0.5, 0.8]} />
+                 <meshStandardMaterial color="#ffffff" />
+               </mesh>
+               {/* Head */}
+               <mesh position={[0, 0.4, 0.4]}>
+                 <boxGeometry args={[0.3, 0.4, 0.3]} />
+                 <meshStandardMaterial color="#ffffff" />
+               </mesh>
+               {/* Beak */}
+               <mesh position={[0, 0.4, 0.6]}>
+                 <boxGeometry args={[0.1, 0.1, 0.2]} />
+                 <meshStandardMaterial color="#fbbf24" />
+               </mesh>
+               {/* Wattle (red thing) */}
+               <mesh position={[0, 0.25, 0.55]}>
+                 <boxGeometry args={[0.05, 0.15, 0.1]} />
+                 <meshStandardMaterial color="#ef4444" />
+               </mesh>
+            </group>
+          )}
+
+          {hasShield && (
+            <mesh visible={danceType !== 0 || isThirdPerson} position={[0, 0.2, 0]}>
+               <sphereGeometry args={[1.5, 32, 32]} />
+               <meshStandardMaterial color="#3b82f6" emissive="#2563eb" emissiveIntensity={2} transparent opacity={0.3} wireframe={false} />
+            </mesh>
+          )}
+
+          {isAwakened && (
+            <mesh visible={isThirdPerson || danceType !== 0}>
+               <sphereGeometry args={[1, 16, 16]} />
+               <meshStandardMaterial color="#8b5cf6" emissive="#3b0764" emissiveIntensity={5} wireframe transparent opacity={0.6} />
+               <pointLight color="#a855f7" intensity={5} distance={10} />
+            </mesh>
+          )}
+          {isBerserk && (
+            <mesh visible={isThirdPerson || danceType !== 0} position={[0, 0.2, 0]}>
+               <sphereGeometry args={[1.2, 16, 16]} />
+               <meshBasicMaterial color="#ff4400" transparent opacity={0.5} blending={THREE.AdditiveBlending} />
+               <pointLight color="#ff4400" intensity={5} distance={10} />
+            </mesh>
+          )}
+          {isLightningAura && (
+            <mesh visible={isThirdPerson || danceType !== 0} position={[0, 0.2, 0]}>
+               <sphereGeometry args={[1.3, 16, 16]} />
+               <meshBasicMaterial color="#ffff00" wireframe transparent opacity={0.7} blending={THREE.AdditiveBlending} />
+               <pointLight color="#ffff00" intensity={3} distance={5} />
+            </mesh>
+          )}
+        </group>
       </mesh>
 
       {rikaSummons.map((r) => (

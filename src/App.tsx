@@ -1,5 +1,5 @@
 import { ContactShadows, Environment, PointerLockControls, Sky, Stars } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/cannon';
 import { Suspense, useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -140,6 +140,59 @@ if (typeof window !== 'undefined') {
   });
 }
 
+const Taco = ({ startX, startZ }: { startX: number, startZ: number }) => {
+  const ref = useRef<any>();
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.position.y -= 0.5;
+      ref.current.rotation.x += 0.1;
+      ref.current.rotation.y += 0.1;
+    }
+  });
+  return (
+    <group ref={ref} position={[startX, 30, startZ]}>
+       <mesh>
+         <boxGeometry args={[0.6, 0.2, 0.4]} />
+         <meshStandardMaterial color="#facc15" />
+       </mesh>
+       <mesh position={[0, 0.1, 0]}>
+         <boxGeometry args={[0.5, 0.1, 0.3]} />
+         <meshStandardMaterial color="#ef4444" />
+       </mesh>
+       <mesh position={[0, 0.2, 0]}>
+         <boxGeometry args={[0.5, 0.1, 0.3]} />
+         <meshStandardMaterial color="#22c55e" />
+       </mesh>
+       <mesh position={[0, 0.3, 0]}>
+         <boxGeometry args={[0.5, 0.1, 0.3]} />
+         <meshStandardMaterial color="#713f12" />
+       </mesh>
+    </group>
+  );
+};
+
+const RainTacos = () => {
+  const [tacos, setTacos] = useState<{ id: number, x: number, z: number }[]>([]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTacos(prev => {
+        if (prev.length > 50) return prev.slice(prev.length - 50);
+        return [...prev, { id: Math.random(), x: (Math.random() - 0.5) * 100, z: (Math.random() - 0.5) * 100 }];
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <>
+      {tacos.map(t => (
+        <Taco key={t.id} startX={t.x} startZ={t.z} />
+      ))}
+    </>
+  );
+};
+
 export default function App() {
   const { socket, players, emitMove, emitAttack, emitUpdateProfile, emitUpdateScore, emitChat } = useMultiplayer();
   const [scene, setScene] = useState<'combat' | 'village'>('combat');
@@ -178,6 +231,26 @@ export default function App() {
     int: 0, // Energy regen
   });
   const [showStatMenu, setShowStatMenu] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [isFlying, setIsFlying] = useState(false);
+  const [sizeModifier, setSizeModifier] = useState(1);
+  const [isImprisoned, setIsImprisoned] = useState(false);
+  
+  // Admin Features
+  const [isSlime, setIsSlime] = useState(false);
+  const isGodModeRef = useRef(false);
+  const [isGodModeUI, setIsGodModeUI] = useState(false);
+  const hasShieldRef = useRef(false);
+  const [hasShieldUI, setHasShieldUI] = useState(false);
+  const noCooldownRef = useRef(false);
+  const [noCooldownUI, setNoCooldownUI] = useState(false);
+  const [isInvisible, setIsInvisible] = useState(false);
+  const [isChicken, setIsChicken] = useState(false);
+  const [isRagdoll, setIsRagdoll] = useState(false);
+  const [isForcedDance, setIsForcedDance] = useState(false);
+  const [tacoRainTimer, setTacoRainTimer] = useState(0);
+  const [isNukeActive, setIsNukeActive] = useState(false);
+  
   const [isSpiritBombActive, setIsSpiritBombActive] = useState(false);
   const [explosionEvent, setExplosionEvent] = useState<{ pos: [number, number, number], radius: number, damageMultiplier?: number, team?: string } | null>(null);
 
@@ -209,9 +282,12 @@ export default function App() {
   const [enemyDomains, setEnemyDomains] = useState<{ id: number; pos: [number, number, number]; rot: number }[]>([]);
   const [bossCinematic, setBossCinematic] = useState<{ pos: [number, number, number], playerPos: [number, number, number], active: boolean } | null>(null);
   const [phase2Cinematic, setPhase2Cinematic] = useState<{ pos: [number, number, number], active: boolean } | null>(null);
-  const [playerTrait, setPlayerTrait] = useState<'none'|'fire'|'ice'|'iron'|'assassin'>('none');
+  const [playerTrait, setPlayerTrait] = useState<'none'|'fire'|'ice'|'iron'|'assassin'|'vampire'|'lightning'|'berserker'|'pig'|'god'>('none');
   const [assassinSpeedStacks, setAssassinSpeedStacks] = useState(0);
   const [ironDefenseStacks, setIronDefenseStacks] = useState(0);
+  const [isBerserk, setIsBerserk] = useState(false);
+  const [pigStacks, setPigStacks] = useState(0);
+  const [isLightningAura, setIsLightningAura] = useState(false);
   const playerTraitRef = useRef(playerTrait);
   useEffect(() => { playerTraitRef.current = playerTrait; }, [playerTrait]);
 
@@ -225,10 +301,23 @@ export default function App() {
   }, [isAwakened]);
 
   useEffect(() => {
+    if (tacoRainTimer > 0) {
+      const timer = setTimeout(() => setTacoRainTimer(p => p - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [tacoRainTimer]);
+
+  useEffect(() => {
     const handleExplosion = (e: any) => {
       let mult = (e.detail.damageMultiplier || 1);
       if (isAwakenedRef.current && e.detail.team !== 'enemy') {
         mult *= 5;
+      }
+      if (isBerserk && e.detail.team !== 'enemy') {
+        mult *= 2.5; // Berserker 2.5x damage
+      }
+      if (pigStacks > 0 && e.detail.team !== 'enemy') {
+        mult *= (1 + pigStacks * 0.2); // Up to 2x at 5 stacks
       }
       setExplosionEvent({
         ...e.detail,
@@ -266,10 +355,43 @@ export default function App() {
     };
 
     const handlePlayerDamage = (e: any) => {
+      if (isGodModeRef.current || hasShieldRef.current) return;
       setHp(prev => {
          const defenseMult = 1 - Math.min(ironDefenseStacks * 0.01, 0.9);
          return Math.max(0, prev - (e.detail.amount || 1) * defenseMult);
       });
+    };
+
+    const handlePlayerHeal = (e: any) => {
+      setHp(prev => Math.min(200, prev + e.detail.amount));
+    };
+
+    const handleLightningHit = () => {
+      setIsLightningAura(true);
+      setTimeout(() => setIsLightningAura(false), 500);
+    };
+
+    const handlePigAteSlime = () => {
+      setPigStacks(prev => Math.min(5, prev + 1));
+      
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+      }
+      
+      setSystemMessage({ text: "꺼억~ (슬라임 포식)", color: "#fcd34d" });
+      setHp(prev => Math.min(200, prev + 30));
     };
 
     const handleExplosionDamageToPlayer = (e: any) => {
@@ -429,6 +551,47 @@ export default function App() {
     const handleVoidDashStart = () => setIsVoidDashing(true);
     const handleVoidDashEnd = () => setIsVoidDashing(false);
 
+    const handleRemoteAttack = (e: any) => {
+      const { type, action, pos, active } = e.detail;
+      if (type === 'adminAction') {
+        if (action === 'killAll') {
+          // Explode everywhere
+          window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [0,0,0], radius: 9999, damageMultiplier: 9999, team: 'admin' } }));
+        } else if (action === 'imprison') {
+          setIsImprisoned(true);
+          setSystemMessage({ text: "관리자에 의해 감옥에 갇혔습니다!", color: "#ef4444" });
+          setTimeout(() => setIsImprisoned(false), 10000); // 10 seconds prison
+        } else if (action === 'pull' && pos) {
+          window.dispatchEvent(new CustomEvent('adminPull', { detail: { pos } }));
+          setSystemMessage({ text: "관리자에 의해 강제 소환되었습니다!", color: "#8b5cf6" });
+        } else if (action === 'apocalypse') {
+          setIsApocalypse(active);
+          window.dispatchEvent(new CustomEvent('apocalypseTrigger', { detail: { active } }));
+        } else if (action === 'rainTacos') {
+          window.dispatchEvent(new CustomEvent('rainTacos'));
+          setSystemMessage({ text: "하늘에서 타코가 내립니다! 🌮", color: "#facc15" });
+        } else if (action === 'danceAll') {
+          window.dispatchEvent(new CustomEvent('adminDance'));
+          setSystemMessage({ text: "춤을 멈출 수 없습니다! 💃", color: "#ec4899" });
+        } else if (action === 'chickenAll') {
+          window.dispatchEvent(new CustomEvent('adminChicken'));
+          setSystemMessage({ text: "당신은 이제 닭입니다! 꼬꼬! 🐔", color: "#fb923c" });
+        } else if (action === 'ragdollAll') {
+          window.dispatchEvent(new CustomEvent('adminRagdoll'));
+          setSystemMessage({ text: "으아악! 🤸", color: "#9ca3af" });
+        } else if (action === 'explodeAll') {
+          window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [0,0,0], radius: 9999, damageMultiplier: 9999, team: 'admin' } }));
+          setSystemMessage({ text: "펑! 💥", color: "#ef4444" });
+        } else if (action === 'nuke') {
+          window.dispatchEvent(new CustomEvent('adminNuke'));
+        } else if (action === 'serverMessage') {
+          window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: `[서버 공지] ${e.detail.text}`, color: "#facc15" } }));
+          window.dispatchEvent(new CustomEvent('playSound', { detail: 'levelUp' }));
+        }
+      }
+    };
+
+    window.addEventListener('remoteAttack', handleRemoteAttack);
     window.addEventListener('voidDashStart', handleVoidDashStart);
     window.addEventListener('voidDashEnd', handleVoidDashEnd);
     window.addEventListener('bombExplode', handleExplosion);
@@ -438,6 +601,9 @@ export default function App() {
     window.addEventListener('apocalypseTrigger', handleApocalypse);
     window.addEventListener('showSystemMessage', handleSystemMsg);
     window.addEventListener('playerDamage', handlePlayerDamage);
+    window.addEventListener('playerHeal', handlePlayerHeal);
+    window.addEventListener('lightningHit', handleLightningHit);
+    window.addEventListener('pigAteSlime', handlePigAteSlime);
     window.addEventListener('sniperHit', handleSniperHit);
     window.addEventListener('sniperAim', handleSniperAim);
     window.addEventListener('domainTrigger', handleDomainTrigger);
@@ -455,7 +621,32 @@ export default function App() {
     window.addEventListener('playSound', handlePlaySound);
     window.addEventListener('chatMessage', handleChatMessage);
     
+    const handleAdminDance = () => { setIsForcedDance(true); setTimeout(() => setIsForcedDance(false), 10000); };
+    const handleAdminChicken = () => { setIsChicken(true); setTimeout(() => setIsChicken(false), 15000); };
+    const handleAdminRagdoll = () => { setIsRagdoll(true); setTimeout(() => setIsRagdoll(false), 5000); };
+    const handleRainTacos = () => { setTacoRainTimer(15); }; // 15 seconds of taco rain
+    const handleAdminNuke = () => {
+      setSystemMessage({ text: "⚠️ 3초 후 핵폭탄이 투하됩니다! ⚠️", color: "#ef4444" });
+      setTimeout(() => {
+        setIsNukeActive(true);
+        window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [0, 0, 0], radius: 9999, damageMultiplier: 9999, team: 'admin' } }));
+        setTimeout(() => setIsNukeActive(false), 3000);
+      }, 3000);
+    };
+    
+    window.addEventListener('adminDance', handleAdminDance);
+    window.addEventListener('adminChicken', handleAdminChicken);
+    window.addEventListener('adminRagdoll', handleAdminRagdoll);
+    window.addEventListener('rainTacos', handleRainTacos);
+    window.addEventListener('adminNuke', handleAdminNuke);
+
     return () => {
+      window.removeEventListener('adminDance', handleAdminDance);
+      window.removeEventListener('adminChicken', handleAdminChicken);
+      window.removeEventListener('adminRagdoll', handleAdminRagdoll);
+      window.removeEventListener('rainTacos', handleRainTacos);
+      window.removeEventListener('adminNuke', handleAdminNuke);
+      window.removeEventListener('remoteAttack', handleRemoteAttack);
       window.removeEventListener('voidDashStart', handleVoidDashStart);
       window.removeEventListener('voidDashEnd', handleVoidDashEnd);
       window.removeEventListener('bombExplode', handleExplosion);
@@ -465,6 +656,9 @@ export default function App() {
       window.removeEventListener('apocalypseTrigger', handleApocalypse);
       window.removeEventListener('showSystemMessage', handleSystemMsg);
       window.removeEventListener('playerDamage', handlePlayerDamage);
+      window.removeEventListener('playerHeal', handlePlayerHeal);
+      window.removeEventListener('lightningHit', handleLightningHit);
+      window.removeEventListener('pigAteSlime', handlePigAteSlime);
       window.removeEventListener('sniperHit', handleSniperHit);
       window.removeEventListener('sniperAim', handleSniperAim);
       window.removeEventListener('domainTrigger', handleDomainTrigger);
@@ -511,12 +705,24 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('toggleThirdPerson'));
       }
       
-      // I am ironman snap
-      if (e.key === 'Shift' && isStarted && hasAllIronmanItems) {
-         window.dispatchEvent(new CustomEvent('ironmanSnap'));
-         playSound('bassDrop');
-         setSystemMessage({ text: "I am Iron Man... (핑거 스냅!)", color: "#ffb347" });
-         setTimeout(() => setSystemMessage(null), 3000);
+      if (e.key === 'Shift' && isStarted) {
+         if (playerTraitRef.current === 'pig') {
+           setPlayerTrait('god');
+           playSound('bassDrop');
+           setSystemMessage({ text: "신성한 각성! (어드민 패널 개방)", color: "#fbbf24" });
+           setShowAdminPanel(true);
+           document.exitPointerLock?.();
+         } else if (playerTraitRef.current === 'god') {
+           setShowAdminPanel(prev => !prev);
+           if (!showAdminPanel) {
+             document.exitPointerLock?.();
+           }
+         } else if (hasAllIronmanItems) {
+           window.dispatchEvent(new CustomEvent('ironmanSnap'));
+           playSound('bassDrop');
+           setSystemMessage({ text: "I am Iron Man... (핑거 스냅!)", color: "#ffb347" });
+           setTimeout(() => setSystemMessage(null), 3000);
+         }
       }
 
       // 2. Shop Interaction & Awakening
@@ -525,16 +731,32 @@ export default function App() {
           setShowShop(true);
           document.exitPointerLock?.();
         } else if (scene === 'combat') {
-          setIsAwakened(prev => {
-            const next = !prev;
-            if (next) {
-              playSound('bassDrop');
-              setSystemMessage({ text: "우주적 각성! (Cosmic Awakening)", color: "#a855f7" });
-            } else {
-              setSystemMessage({ text: "각성 해제", color: "#ffffff" });
-            }
-            return next;
-          });
+          if (playerTraitRef.current === 'berserker') {
+            setIsBerserk(prev => {
+              const next = !prev;
+              if (next) {
+                playSound('bassDrop');
+                setSystemMessage({ text: "버서커 폭주! (화염 강화)", color: "#ef4444" });
+                setHp(prev => prev + 50);
+              } else {
+                setSystemMessage({ text: "폭주 해제", color: "#ffffff" });
+              }
+              return next;
+            });
+          } else if (playerTraitRef.current === 'pig' && nickname === '조찬우') {
+            window.dispatchEvent(new CustomEvent('pigEatSlime'));
+          } else {
+            setIsAwakened(prev => {
+              const next = !prev;
+              if (next) {
+                playSound('bassDrop');
+                setSystemMessage({ text: "우주적 각성! (Cosmic Awakening)", color: "#a855f7" });
+              } else {
+                setSystemMessage({ text: "각성 해제", color: "#ffffff" });
+              }
+              return next;
+            });
+          }
         }
       }
     };
@@ -667,8 +889,15 @@ export default function App() {
   }, [maxXp, level, maxHp, emitUpdateScore]);
 
   const useEnergy = useCallback((amount: number) => {
+    if (noCooldownRef.current) return;
     setEnergy(prev => Math.max(0, prev - amount));
   }, []);
+
+  useEffect(() => {
+    if (noCooldownUI) {
+      setEnergy(9999);
+    }
+  }, [noCooldownUI]);
 
   const triggerSpiritBomb = useCallback(() => {
     if (energy < 80) return;
@@ -708,8 +937,21 @@ export default function App() {
               emitMove={emitMove}
               emitAttack={emitAttack}
               players={players}
-              stats={{...stats, agi: stats.agi + (playerTraitRef.current === 'assassin' ? assassinSpeedStacks * 2 : 0)}}
+              stats={{...stats, agi: stats.agi + (playerTraitRef.current === 'assassin' ? assassinSpeedStacks * 2 : 0) + (isBerserk ? 5 : 0)}}
               isAwakened={isAwakened}
+              isBerserk={isBerserk}
+              pigStacks={pigStacks}
+              isLightningAura={isLightningAura}
+              sizeModifier={sizeModifier}
+              isFlying={isFlying}
+              isImprisoned={isImprisoned}
+              isSlime={isSlime}
+              hasShield={hasShieldUI}
+              noCooldown={noCooldownUI}
+              isInvisible={isInvisible}
+              isChicken={isChicken}
+              isRagdoll={isRagdoll}
+              isForcedDance={isForcedDance}
             />
             
             {ownedPets.map((p, i) => (
@@ -754,8 +996,8 @@ export default function App() {
               />
             ))}
 
-            {players.map(p => (
-              <OtherPlayer key={p.id} id={p.id} player={p} />
+            {players.map((p, i) => (
+              <OtherPlayer key={p.id || `p_${i}`} id={p.id} player={p} />
             ))}
 
             {scene === 'combat' ? (
@@ -782,6 +1024,7 @@ export default function App() {
           {phase2Cinematic?.active && (
             <Phase2CinematicCamera targetPos={phase2Cinematic.pos} onFinish={() => setPhase2Cinematic(null)} />
           )}
+          {tacoRainTimer > 0 && <RainTacos />}
           <PointerLockControls 
             ref={controlsRef}
             onLock={() => { setIsLocked(true); setIsStarted(true); }} 
@@ -1211,7 +1454,7 @@ export default function App() {
               {playerTrait === 'none' ? (
                 <div className="pointer-events-auto mt-8 flex flex-col items-center">
                   <div className="text-2xl font-bold text-white mb-6">시작 전 특성을 선택하세요</div>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
                     <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('fire'); }} className="px-6 py-4 bg-red-600/80 hover:bg-red-500 text-white rounded-xl font-bold border border-red-400 transition-all cursor-pointer">
                       <div className="text-xl mb-1">🔥 불 속성</div>
                       <div className="text-xs opacity-80">공격 시 50% 확률로 화상</div>
@@ -1228,6 +1471,24 @@ export default function App() {
                       <div className="text-xl mb-1">🗡️ 암살자 속성</div>
                       <div className="text-xs opacity-80">몹 처치 시 속도 1 증가</div>
                     </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('vampire'); }} className="px-6 py-4 bg-red-900/80 hover:bg-red-800 text-white rounded-xl font-bold border border-red-700 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">🦇 뱀파이어</div>
+                      <div className="text-xs opacity-80">공격 데미지의 20% 흡혈</div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('lightning'); }} className="px-6 py-4 bg-yellow-600/80 hover:bg-yellow-500 text-white rounded-xl font-bold border border-yellow-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">⚡ 번개 속성</div>
+                      <div className="text-xs opacity-80">타격 시 번개 아우라 발산</div>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('berserker'); }} className="px-6 py-4 bg-orange-600/80 hover:bg-orange-500 text-white rounded-xl font-bold border border-orange-400 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">😡 버서커</div>
+                      <div className="text-xs opacity-80">E키로 화염폭주 (강화)</div>
+                    </button>
+                    {nickname === '조찬우' && (
+                    <button onClick={(e) => { e.stopPropagation(); setPlayerTrait('pig'); }} className="px-6 py-4 bg-pink-500/80 hover:bg-pink-400 text-white rounded-xl font-bold border border-pink-300 transition-all cursor-pointer">
+                      <div className="text-xl mb-1">🐷 돼지 속성</div>
+                      <div className="text-xs opacity-80">E키로 슬라임 포식 (최대 1.5배)</div>
+                    </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1236,7 +1497,7 @@ export default function App() {
                     {lockCooldown ? "잠시 대기..." : (isStarted ? "클릭하여 전투 재개" : "클릭하여 전투 시작")}
                   </div>
                   <div className="text-green-400 font-bold mb-8 text-sm">
-                    선택된 특성: {playerTrait === 'fire' ? '🔥 불' : playerTrait === 'ice' ? '❄️ 얼음' : playerTrait === 'iron' ? '🛡️ 철' : '🗡️ 암살자'}
+                    선택된 특성: {playerTrait === 'fire' ? '🔥 불' : playerTrait === 'ice' ? '❄️ 얼음' : playerTrait === 'iron' ? '🛡️ 철' : playerTrait === 'assassin' ? '🗡️ 암살자' : playerTrait === 'vampire' ? '🦇 뱀파이어' : playerTrait === 'lightning' ? '⚡ 번개' : playerTrait === 'berserker' ? '😡 버서커' : '🐷 돼지'}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
@@ -1433,7 +1694,7 @@ export default function App() {
               <span className="text-[#00ffcc] font-mono font-bold">{score}</span>
             </div>
             {players.filter(p => p.nickname).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5).map((p, i) => (
-              <div key={p.id} className="flex justify-between items-center text-sm">
+              <div key={p.id || `s_${i}`} className="flex justify-between items-center text-sm">
                 <span className="text-gray-300 font-medium truncate max-w-[120px]">{i+1}. {p.nickname}</span>
                 <span className="text-gray-400 font-mono">{p.score || 0}</span>
               </div>
@@ -1629,6 +1890,112 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Imprisoned UI Overlay */}
+      {isImprisoned && (
+        <div className="absolute inset-0 z-[95] pointer-events-none flex flex-col justify-center items-center">
+           <div className="absolute inset-0 bg-black/50 repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,0,0,0.8) 40px, rgba(0,0,0,0.8) 60px)" style={{ background: 'repeating-linear-gradient(90deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 40px, rgba(0,0,0,0.9) 40px, rgba(0,0,0,0.9) 60px)' }}></div>
+           <div className="text-red-500 text-6xl font-black font-sans bg-black/80 px-10 py-5 rounded-full z-10 border-4 border-red-500 animate-pulse">
+             감옥에 갇혔습니다!
+           </div>
+        </div>
+      )}
+
+      {/* Admin Panel */}
+      {showAdminPanel && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-auto bg-black/90 backdrop-blur-lg border border-yellow-500/50 p-6 rounded-xl text-white font-sans w-[800px] max-w-[90vw] shadow-[0_0_30px_rgba(251,191,36,0.3)] max-h-[85vh] overflow-y-auto flex flex-col md:flex-row gap-6">
+          <div className="flex-1 flex flex-col gap-4">
+            <div className="text-xl font-bold text-yellow-400 mb-2 text-center md:text-left">👑 어드민 패널</div>
+            
+            <div className="border border-white/10 p-3 rounded bg-white/5">
+              <div className="text-sm font-bold text-gray-300 mb-2">스탯 수동 조작</div>
+              <div className="flex gap-2 mb-2">
+                <label className="flex-1 text-xs text-gray-400 flex flex-col gap-1">
+                  STR (공격력)
+                  <input type="number" value={stats.str} onChange={(e) => setStats(s => ({...s, str: Number(e.target.value)}))} className="bg-black/50 border border-white/20 rounded px-2 py-1 text-white" />
+                </label>
+                <label className="flex-1 text-xs text-gray-400 flex flex-col gap-1">
+                  AGI (속도)
+                  <input type="number" value={stats.agi} onChange={(e) => setStats(s => ({...s, agi: Number(e.target.value)}))} className="bg-black/50 border border-white/20 rounded px-2 py-1 text-white" />
+                </label>
+                <label className="flex-1 text-xs text-gray-400 flex flex-col gap-1">
+                  INT (에너지)
+                  <input type="number" value={stats.int} onChange={(e) => setStats(s => ({...s, int: Number(e.target.value)}))} className="bg-black/50 border border-white/20 rounded px-2 py-1 text-white" />
+                </label>
+              </div>
+              <button onClick={() => { setStats({ str: 9999, agi: 9999, int: 9999 }); setMaxHp(999999); setHp(999999); }} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-all text-sm">스탯 뻥튀기 (Max All)</button>
+            </div>
+
+            <div className="border border-white/10 p-3 rounded bg-white/5 flex flex-col gap-2">
+              <div className="text-sm font-bold text-gray-300">서버 공지 전송</div>
+              <div className="flex gap-2">
+                <input type="text" id="admin-notice-input" className="flex-1 bg-black/50 border border-white/20 rounded px-2 py-1 text-white text-sm" placeholder="메시지 입력..." />
+                <button onClick={() => { 
+                  const input = document.getElementById('admin-notice-input') as HTMLInputElement;
+                  if (input && input.value) {
+                    emitAttack('adminAction', { action: 'serverMessage', text: input.value });
+                    window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: `[서버 공지] ${input.value}`, color: "#facc15" } }));
+                    window.dispatchEvent(new CustomEvent('playSound', { detail: 'levelUp' }));
+                    input.value = '';
+                  }
+                }} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-all text-sm">전송</button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="text-sm font-bold text-gray-300">상태 토글</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { isGodModeRef.current = !isGodModeRef.current; setIsGodModeUI(isGodModeRef.current); }} className={`px-2 py-2 rounded font-bold transition-all text-xs ${isGodModeUI ? 'bg-yellow-500 text-black' : 'bg-white/10 hover:bg-white/20'}`}>{isGodModeUI ? '신 모드 (무적) ON' : '신 모드 (무적) OFF'}</button>
+                <button onClick={() => { hasShieldRef.current = !hasShieldRef.current; setHasShieldUI(hasShieldRef.current); }} className={`px-2 py-2 rounded font-bold transition-all text-xs ${hasShieldUI ? 'bg-blue-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}>{hasShieldUI ? '방어막 ON' : '방어막 OFF'}</button>
+                <button onClick={() => { noCooldownRef.current = !noCooldownRef.current; setNoCooldownUI(noCooldownRef.current); }} className={`px-2 py-2 rounded font-bold transition-all text-xs ${noCooldownUI ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}>{noCooldownUI ? '쿨타임 없음 ON' : '쿨타임 없음 OFF'}</button>
+                <button onClick={() => setIsInvisible(p => !p)} className={`px-2 py-2 rounded font-bold transition-all text-xs ${isInvisible ? 'bg-gray-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}>{isInvisible ? '투명 ON' : '투명 OFF'}</button>
+                <button onClick={() => setIsSlime(p => !p)} className={`px-2 py-2 rounded font-bold transition-all text-xs ${isSlime ? 'bg-green-600 text-white' : 'bg-white/10 hover:bg-white/20'}`}>{isSlime ? '슬라임 폼 ON' : '슬라임 변신'}</button>
+                <button onClick={() => setIsFlying(p => !p)} className={`px-2 py-2 rounded font-bold transition-all text-xs ${isFlying ? 'bg-cyan-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}>{isFlying ? '비행 중 (Land)' : '비행 (Fly)'}</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <div className="text-sm font-bold text-gray-300">액션</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => window.dispatchEvent(new CustomEvent('resetPosition'))} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-all text-sm">순간이동 (Spawn)</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'killAll' }); window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [0,0,0], radius: 9999, damageMultiplier: 9999, team: 'admin' } })); }} className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded font-bold transition-all text-sm">모두 죽이기</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'imprison' }); window.dispatchEvent(new CustomEvent('adminImprisonMobs')); }} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded font-bold transition-all text-sm">모두 가두기</button>
+                <button onClick={() => emitAttack('adminAction', { action: 'pull', pos: playerPos })} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded font-bold transition-all text-sm">모두 소환</button>
+              </div>
+              
+              <button onClick={() => window.dispatchEvent(new CustomEvent('adminSpawnBoss'))} className="w-full px-4 py-2 bg-red-900 hover:bg-red-800 rounded font-bold transition-all text-sm">보스 강제 소환</button>
+              <button onClick={() => { setIsApocalypse(p => !p); window.dispatchEvent(new CustomEvent('apocalypseTrigger', { detail: { active: !isApocalypse } })); emitAttack('adminAction', { action: 'apocalypse', active: !isApocalypse }); }} className="w-full px-4 py-2 bg-red-950 hover:bg-red-900 rounded font-bold transition-all text-sm border border-red-500">{isApocalypse ? "종말 끄기" : "서버 종말 발동"}</button>
+              <button onClick={() => { emitAttack('adminAction', { action: 'nuke' }); window.dispatchEvent(new CustomEvent('adminNuke')); }} className="w-full px-4 py-2 bg-orange-700 hover:bg-orange-600 rounded font-bold transition-all text-sm border border-yellow-500 shadow-[0_0_15px_rgba(251,146,60,0.8)] animate-pulse">핵폭탄 투하 (NUKE) ☢️</button>
+              <button onClick={() => { window.dispatchEvent(new CustomEvent('theWorldTrigger')); emitAttack('theWorld', {}); }} className="w-full px-4 py-2 bg-purple-900 hover:bg-purple-800 rounded font-bold transition-all text-sm">시간 정지 (The World)</button>
+              
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                <button onClick={() => { emitAttack('adminAction', { action: 'rainTacos' }); window.dispatchEvent(new CustomEvent('rainTacos')); }} className="px-2 py-2 bg-yellow-600 hover:bg-yellow-500 rounded font-bold transition-all text-xs">타코 내리기 🌮</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'danceAll' }); window.dispatchEvent(new CustomEvent('adminDance')); }} className="px-2 py-2 bg-pink-600 hover:bg-pink-500 rounded font-bold transition-all text-xs">모두 춤추기 💃</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'chickenAll' }); window.dispatchEvent(new CustomEvent('adminChicken')); }} className="px-2 py-2 bg-orange-400 hover:bg-orange-300 rounded font-bold transition-all text-xs text-black">모두 닭 되기 🐔</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'ragdollAll' }); window.dispatchEvent(new CustomEvent('adminRagdoll')); }} className="px-2 py-2 bg-gray-600 hover:bg-gray-500 rounded font-bold transition-all text-xs">모두 넘어지기 🤸</button>
+                <button onClick={() => { emitAttack('adminAction', { action: 'explodeAll' }); window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [0,0,0], radius: 9999, damageMultiplier: 9999, team: 'admin' } })); window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "펑! 💥", color: "#ef4444" } })); }} className="px-2 py-2 bg-red-600 hover:bg-red-500 rounded font-bold transition-all text-xs">모두 터지기 💥</button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setSizeModifier(0.2)} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-bold transition-all text-xs">작아지기</button>
+                <button onClick={() => setSizeModifier(5)} className="flex-1 px-4 py-2 bg-pink-600 hover:bg-pink-500 rounded font-bold transition-all text-xs">커지기</button>
+                <button onClick={() => setSizeModifier(1)} className="flex-1 px-2 py-2 bg-gray-600 hover:bg-gray-500 rounded font-bold transition-all text-xs">크기 복구</button>
+              </div>
+            </div>
+            <button onClick={() => { setShowAdminPanel(false); document.body.requestPointerLock(); }} className="mt-auto w-full py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-sm">닫기 (Close)</button>
+          </div>
+        </div>
+      )}
+
+      {/* Nuke Flash Overlay */}
+      {isNukeActive && (
+        <div className="absolute inset-0 z-[150] pointer-events-none bg-white animate-pulse" style={{ animationDuration: '0.2s' }}>
+           <div className="absolute inset-0 flex items-center justify-center text-red-600 font-black text-9xl">
+              ☢️
+           </div>
         </div>
       )}
 

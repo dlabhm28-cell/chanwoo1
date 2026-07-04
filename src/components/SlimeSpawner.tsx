@@ -24,6 +24,7 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
   const [allies, setAllies] = useState<{ id: number; type: 'alliedSlime' | 'alliedSkeleton' | 'alliedAI'; position: [number, number, number] }[]>([]);
   const [drops, setDrops] = useState<{ id: number; type: ItemType; position: [number, number, number] }[]>([]);
   const [ashEffects, setAshEffects] = useState<{ id: number; position: [number, number, number] }[]>([]);
+  const [mobsImprisoned, setMobsImprisoned] = useState(false);
   const spawnTimer = useRef(0);
   const scoreRef = useRef(0);
   const bossSpawned = useRef(false);
@@ -200,11 +201,46 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
       });
       setEnemies([]);
     };
+
+    const handlePigEat = () => {
+      setEnemies(prev => {
+         const slimes = prev.filter(e => e.type === 'slime' || e.type === 'skeleton');
+         if (slimes.length === 0) return prev;
+         
+         let closest = slimes[0];
+         let minDist = Infinity;
+         for (const s of slimes) {
+            const dist = Math.hypot(s.position[0] - playerPos[0], s.position[2] - playerPos[2]);
+            if (dist < minDist) { minDist = dist; closest = s; }
+         }
+         if (minDist < 10) {
+            window.dispatchEvent(new CustomEvent('pigAteSlime'));
+            return prev.filter(e => e.id !== closest.id);
+         }
+         return prev;
+      });
+    };
+
     window.addEventListener('ironmanSnap', handleSnap);
+    window.addEventListener('pigEatSlime', handlePigEat);
+
+    const handleAdminBossSpawn = () => {
+      spawnBoss([playerPos[0] + 15, playerPos[1], playerPos[2] + 15]);
+    };
+    window.addEventListener('adminSpawnBoss', handleAdminBossSpawn);
+
+    const handleAdminImprison = () => {
+      setMobsImprisoned(true);
+      setTimeout(() => setMobsImprisoned(false), 10000); // 10 seconds imprisonment
+    };
+    window.addEventListener('adminImprisonMobs', handleAdminImprison);
 
     return () => {
       window.removeEventListener('requestPetTarget', handlePetRequest);
       window.removeEventListener('ironmanSnap', handleSnap);
+      window.removeEventListener('pigEatSlime', handlePigEat);
+      window.removeEventListener('adminSpawnBoss', handleAdminBossSpawn);
+      window.removeEventListener('adminImprisonMobs', handleAdminImprison);
     };
   }, [enemies]);
 
@@ -221,17 +257,25 @@ export const SlimeSpawner = ({ onKill, isSpiritBombActive, explosionEvent, playe
         else if (e.type === 'boss') CurrentEnemy = BossDemon;
 
         return (
-          <CurrentEnemy 
-            key={e.id} 
-            position={e.position} 
-            isKing={e.isKing}
-            playerPos={playerPos}
-            onDie={() => {
-              removeEnemy(e.id, e.type, e.isKing, e.position);
-            }} 
-            isSpiritBombActive={isSpiritBombActive} 
-            explosionEvent={explosionEvent}
-          />
+          <group key={e.id}>
+            <CurrentEnemy 
+              position={e.position} 
+              isKing={e.isKing}
+              playerPos={playerPos}
+              onDie={() => {
+                removeEnemy(e.id, e.type, e.isKing, e.position);
+              }} 
+              isSpiritBombActive={isSpiritBombActive} 
+              explosionEvent={explosionEvent}
+              isImprisoned={mobsImprisoned}
+            />
+            {mobsImprisoned && (
+              <mesh position={[e.position[0], e.position[1] + 1, e.position[2]]}>
+                 <boxGeometry args={[2.5, 3, 2.5]} />
+                 <meshStandardMaterial color="#3b82f6" wireframe transparent opacity={0.6} />
+              </mesh>
+            )}
+          </group>
         );
       })}
 

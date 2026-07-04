@@ -5,11 +5,13 @@ import * as THREE from 'three';
 
 import { getAudioContext } from '../audio';
 
-export const Bomber = ({ position, onDie, explosionEvent, playerPos }: { 
+export const Bomber = ({ position, onDie, explosionEvent, playerPos, isSpiritBombActive, isImprisoned = false }: { 
   position: [number, number, number], 
   onDie: () => void,
   explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null,
-  playerPos: [number, number, number]
+  playerPos: [number, number, number],
+  isSpiritBombActive?: boolean,
+  isImprisoned?: boolean
 }) => {
   const [health, setHealth] = useState(50);
   const [isDead, setIsDead] = useState(false);
@@ -52,6 +54,12 @@ export const Bomber = ({ position, onDie, explosionEvent, playerPos }: {
              setIsFrozen(true);
              stunTimer.current = 180;
          }
+         if ((explosionEvent as any).trait === 'vampire' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('playerHeal', { detail: { amount: 50 * (explosionEvent.damageMultiplier || 1) * 0.2 } }));
+         }
+         if ((explosionEvent as any).trait === 'lightning' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('lightningHit'));
+         }
       }
     }
   }, [explosionEvent]);
@@ -89,7 +97,10 @@ export const Bomber = ({ position, onDie, explosionEvent, playerPos }: {
   };
 
   useFrame((state) => {
-    if ((window as any).isTimeStopped || isDead) return;
+    if ((window as any).isTimeStopped || isDead || isImprisoned) {
+      api.velocity.set(0, 0, 0);
+      return;
+    }
     
     if (onFire) {
        if (state.clock.elapsedTime % 0.5 < 0.016) {

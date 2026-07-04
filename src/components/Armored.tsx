@@ -4,11 +4,12 @@ import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { getAudioContext } from '../audio';
 
-export const Armored = ({ position, onDie, explosionEvent, playerPos }: { 
+export const Armored = ({ position, onDie, explosionEvent, playerPos, isImprisoned = false }: { 
   position: [number, number, number], 
   onDie: () => void,
   explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null,
-  playerPos: [number, number, number]
+  playerPos: [number, number, number],
+  isImprisoned?: boolean
 }) => {
   const maxHealth = 300;
   const [health, setHealth] = useState(maxHealth);
@@ -54,6 +55,12 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
              setIsFrozen(true);
              stunTimer.current = 180;
          }
+         if ((explosionEvent as any).trait === 'vampire' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('playerHeal', { detail: { amount: 30 * (explosionEvent.damageMultiplier || 1) * 0.2 } }));
+         }
+         if ((explosionEvent as any).trait === 'lightning' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('lightningHit'));
+         }
       }
     }
   }, [explosionEvent]);
@@ -83,7 +90,10 @@ export const Armored = ({ position, onDie, explosionEvent, playerPos }: {
   };
 
   useFrame((state) => {
-    if ((window as any).isTimeStopped || isDead) return;
+    if ((window as any).isTimeStopped || isDead || isImprisoned) {
+      api.velocity.set(0, 0, 0);
+      return;
+    }
     
     if (onFire) {
        if (state.clock.elapsedTime % 0.5 < 0.016) {

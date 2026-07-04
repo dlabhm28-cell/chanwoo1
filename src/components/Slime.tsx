@@ -4,12 +4,13 @@ import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { FreezeFrame2D, VoidSymbols } from './Projectiles';
 
-export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, explosionEvent }: { 
+export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, explosionEvent, isImprisoned = false }: { 
   position: [number, number, number], 
   onDie: () => void,
   isSpiritBombActive: boolean,
   isKing?: boolean,
-  explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null
+  explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null,
+  isImprisoned?: boolean
 }) => {
   const maxHealth = isKing ? 1000 : 100;
   const scale = isKing ? 3 : 1;
@@ -85,6 +86,12 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
              setIsFrozen(true);
              stunTimer.current = 180;
           }
+          if ((explosionEvent as any).trait === 'vampire' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('playerHeal', { detail: { amount: damage * 0.2 } }));
+          }
+          if ((explosionEvent as any).trait === 'lightning' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('lightningHit'));
+          }
           
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
@@ -115,7 +122,7 @@ export const Slime = ({ position, onDie, isSpiritBombActive, isKing = false, exp
            setHealth(prev => prev - 5);
        }
     }
-    if ((window as any).isTimeStopped || voidTimer.current > 0) {
+    if ((window as any).isTimeStopped || voidTimer.current > 0 || isImprisoned) {
       if (voidTimer.current > 0) {
         voidTimer.current--;
         if (voidTimer.current <= 0) setIsVoided(false);

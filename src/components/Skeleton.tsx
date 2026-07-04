@@ -4,11 +4,12 @@ import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { FreezeFrame2D, VoidSymbols } from './Projectiles';
 
-export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }: { 
+export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent, isImprisoned = false }: { 
   position: [number, number, number], 
   onDie: () => void,
   isSpiritBombActive: boolean,
-  explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null
+  explosionEvent?: { pos: [number, number, number], radius: number, team?: string, damageMultiplier?: number } | null,
+  isImprisoned?: boolean
 }) => {
   const maxHealth = 60;
   const [health, setHealth] = useState(maxHealth);
@@ -72,6 +73,12 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
              setIsFrozen(true);
              stunTimer.current = 180;
           }
+          if ((explosionEvent as any).trait === 'vampire' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('playerHeal', { detail: { amount: damage * 0.2 } }));
+          }
+          if ((explosionEvent as any).trait === 'lightning' && explosionEvent.team === 'player') {
+             window.dispatchEvent(new CustomEvent('lightningHit'));
+          }
 
           if ((explosionEvent as any).launchForce && !isFramed) {
             api.velocity.set(0, (explosionEvent as any).launchForce, 0);
@@ -92,7 +99,7 @@ export const Skeleton = ({ position, onDie, isSpiritBombActive, explosionEvent }
            setHealth(prev => prev - 5);
        }
     }
-    if ((window as any).isTimeStopped || voidTimer.current > 0) {
+    if ((window as any).isTimeStopped || voidTimer.current > 0 || isImprisoned) {
       if (voidTimer.current > 0) {
         voidTimer.current--;
         if (voidTimer.current <= 0) setIsVoided(false);

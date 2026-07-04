@@ -107,7 +107,8 @@ export const VillageLevel = () => {
 
       {/* Some trees */}
       {[-20, 20].map((x) => 
-        [-20, 20].map((z) => (
+        <group key={x}>
+        {[-20, 20].map((z) => (
           <group position={[x, 0, z]} key={`${x}-${z}`}>
             <mesh position={[0, 2, 0]} castShadow>
               <cylinderGeometry args={[0.5, 0.5, 4]} />
@@ -118,7 +119,8 @@ export const VillageLevel = () => {
               <meshStandardMaterial color="#2d5a27" />
             </mesh>
           </group>
-        ))
+        ))}
+        </group>
       )}
     </group>
   );
