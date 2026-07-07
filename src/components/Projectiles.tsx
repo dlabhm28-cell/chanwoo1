@@ -2546,6 +2546,148 @@ export const HollowPurpleEffect = ({ position, direction, onFinish, isAwakened =
   );
 };
 
+export const PumpkinPotatoEffect = ({ position, direction, onFinish }: { position: [number, number, number], direction: [number, number, number], onFinish: () => void }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const timer = useRef(0);
+
+  useFrame((state, delta) => {
+    timer.current += delta;
+    if (groupRef.current) {
+      groupRef.current.position.add(new THREE.Vector3(direction[0], direction[1], direction[2]).multiplyScalar(delta * 20));
+      groupRef.current.rotation.x += delta * 10;
+      groupRef.current.rotation.y += delta * 15;
+    }
+    
+    if (timer.current > 0.5 && timer.current < 0.6) { // Just one explosion frame
+        window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: groupRef.current?.position.toArray() || position, radius: 10, damageMultiplier: 10, team: 'player' } }));
+    }
+
+    if (timer.current > 3) {
+      onFinish();
+    }
+  });
+
+  return (
+    <group>
+      <group position={position}>
+        {[...Array(8)].map((_, i) => (
+          <group key={i} position={[(Math.random() - 0.5) * 15, -1, (Math.random() - 0.5) * 15]}>
+            <mesh position={[0, 2, 0]}>
+               <cylinderGeometry args={[0.5, 0.8, 4]} />
+               <meshStandardMaterial color="#8B4513" />
+            </mesh>
+            <mesh position={[0, 5, 0]}>
+               <sphereGeometry args={[2.5]} />
+               <meshStandardMaterial color="#22c55e" />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      <group ref={groupRef} position={[position[0], position[1] + 2, position[2]]}>
+         <mesh>
+           <capsuleGeometry args={[0.6, 1.2, 8, 8]} />
+           <meshStandardMaterial color="#f59e0b" />
+         </mesh>
+         <pointLight color="#f59e0b" intensity={5} distance={10} />
+      </group>
+    </group>
+  );
+};
+
+export const MeteorStrikeEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const timer = useRef(0);
+  const startPos = new THREE.Vector3(position[0], position[1] + 60, position[2]);
+  const endPos = new THREE.Vector3(position[0], position[1], position[2]);
+
+  useFrame((state, delta) => {
+    timer.current += delta;
+    const progress = Math.min(timer.current / 1.5, 1);
+    
+    if (groupRef.current) {
+      groupRef.current.position.lerpVectors(startPos, endPos, progress * progress); // Accelerate
+      groupRef.current.rotation.x += delta * 5;
+      groupRef.current.rotation.y += delta * 5;
+    }
+
+    if (progress >= 1 && timer.current < 1.6) {
+       window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: endPos.toArray(), radius: 30, damageMultiplier: 50, team: 'player' } }));
+    }
+
+    if (timer.current > 2.5) {
+      onFinish();
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={startPos}>
+      <mesh>
+        <sphereGeometry args={[5, 16, 16]} />
+        <meshStandardMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={0.5} roughness={0.9} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[5.5, 16, 16]} />
+        <meshBasicMaterial color="#fca5a5" wireframe transparent opacity={0.5} />
+      </mesh>
+      <pointLight color="#ef4444" intensity={20} distance={50} />
+    </group>
+  );
+};
+
+export const ShadowCloneEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+  const timer = useRef(0);
+  const groupRef = useRef<THREE.Group>(null);
+
+  useEffect(() => {
+     window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: position, radius: 5, damageMultiplier: 2, team: 'player' } }));
+  }, []);
+
+  useFrame((state, delta) => {
+    timer.current += delta;
+    if (groupRef.current) {
+        groupRef.current.position.x += Math.sin(timer.current * 10) * 0.1;
+        groupRef.current.position.z += Math.cos(timer.current * 10) * 0.1;
+    }
+    if (timer.current > 5) onFinish();
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <mesh position={[0, 1, 0]}>
+        <boxGeometry args={[1, 2, 1]} />
+        <meshStandardMaterial color="#1f2937" emissive="#000000" transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[0, 2.5, 0]}>
+        <sphereGeometry args={[0.5]} />
+        <meshStandardMaterial color="#1f2937" transparent opacity={0.8} />
+      </mesh>
+    </group>
+  );
+};
+
+export const EarthquakeEffect = ({ position, onFinish }: { position: [number, number, number], onFinish: () => void }) => {
+  const timer = useRef(0);
+
+  useFrame((state, delta) => {
+    timer.current += delta;
+    if (Math.floor(timer.current * 10) % 2 === 0 && timer.current < 2) {
+       window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [position[0] + (Math.random()-0.5)*20, position[1], position[2] + (Math.random()-0.5)*20], radius: 15, damageMultiplier: 5, team: 'player' } }));
+    }
+    if (timer.current > 3) onFinish();
+  });
+
+  return (
+    <group position={position}>
+      {[...Array(10)].map((_, i) => (
+        <mesh key={i} position={[(Math.random() - 0.5) * 30, -0.5, (Math.random() - 0.5) * 30]} rotation={[(Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)]}>
+          <boxGeometry args={[4, 1, 4]} />
+          <meshStandardMaterial color="#4b5563" />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
 
 
 

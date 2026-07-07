@@ -3,7 +3,7 @@ import { useSphere } from '@react-three/cannon';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useControls } from '../hooks/useControls';
-import { EnergyBlast, SpiritBombVisual, Dagger, Bomb, Explosion, WindEffect, LightningStrike, WindStorm, GiantKatana, SniperBullet, DomainExpansion, FireArrow, CrackleEffect, RikaSummon, QuickSlash, Meteor, Blackhole, Planet, CockroachSwarm, BadBreath, UnitedStatesOfSmash, ShatteredGlass, UnlimitedVoidEffect, SelfEmbodimentofPerfectionEffect, TimeCellMoonPalaceEffect, SpaceCleaveEffect, HollowPurpleEffect } from './Projectiles';
+import { EnergyBlast, SpiritBombVisual, Dagger, Bomb, Explosion, WindEffect, LightningStrike, WindStorm, GiantKatana, SniperBullet, DomainExpansion, FireArrow, CrackleEffect, RikaSummon, QuickSlash, Meteor, Blackhole, Planet, CockroachSwarm, BadBreath, UnitedStatesOfSmash, ShatteredGlass, UnlimitedVoidEffect, SelfEmbodimentofPerfectionEffect, TimeCellMoonPalaceEffect, SpaceCleaveEffect, HollowPurpleEffect, PumpkinPotatoEffect, MeteorStrikeEffect, ShadowCloneEffect, EarthquakeEffect } from './Projectiles';
 
 import { RobloxCharacter } from './RobloxCharacter';
 
@@ -38,7 +38,7 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   isForcedDance?: boolean
 }) => {
   const { camera } = useThree();
-  const { forward, backward, left, right, jump, spiritBomb, dagger, bomb, charge, weapon1, weapon2, weapon3, weapon4, weapon5, weapon6, weapon7, weapon8, weapon9, weapon0, sniper, domain, fuga, theWorld, summon, barrier, dashAttack, blackFlash, frameFreeze, unlimitedVoid, selfEmbodiment, timeCellMoonPalace, spaceCleave, hollowPurple } = useControls();
+  const { forward, backward, left, right, jump, spiritBomb, dagger, bomb, charge, weapon1, weapon2, weapon3, weapon4, weapon5, weapon6, weapon7, weapon8, weapon9, weapon0, sniper, domain, fuga, theWorld, summon, barrier, dashAttack, blackFlash, frameFreeze, unlimitedVoid, selfEmbodiment, timeCellMoonPalace, spaceCleave, hollowPurple, pumpkinPotato, meteorStrike, shadowClone, earthquake } = useControls();
   
   const [ref, api] = useSphere(() => ({
     mass: 1,
@@ -80,6 +80,10 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   const [timeCells, setTimeCells] = useState<{ id: number; pos: [number, number, number] }[]>([]);
   const [spaceCleaves, setSpaceCleaves] = useState<{ id: number; pos: [number, number, number]; rot: number }[]>([]);
   const [hollowPurples, setHollowPurples] = useState<{ id: number; pos: [number, number, number]; dir: [number, number, number] }[]>([]);
+  const [pumpkinPotatoes, setPumpkinPotatoes] = useState<{ id: number; pos: [number, number, number]; dir: [number, number, number] }[]>([]);
+  const [meteorStrikes, setMeteorStrikes] = useState<{ id: number; pos: [number, number, number]; }[]>([]);
+  const [shadowClones, setShadowClones] = useState<{ id: number; pos: [number, number, number]; }[]>([]);
+  const [earthquakes, setEarthquakes] = useState<{ id: number; pos: [number, number, number]; }[]>([]);
 
   const [bombCount, setBombCount] = useState(0);
   const prevSniper = useRef(false);
@@ -93,6 +97,10 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   const prevTimeCell = useRef(false);
   const prevSpaceCleave = useRef(false);
   const prevHollowPurple = useRef(false);
+  const prevPumpkinPotato = useRef(false);
+  const prevMeteorStrike = useRef(false);
+  const prevShadowClone = useRef(false);
+  const prevEarthquake = useRef(false);
 
   const [lightnings, setLightnings] = useState<{ id: number; pos: [number, number, number]; isPowerful: boolean; isUltimate?: boolean; isRainbow?: boolean; forceColor?: string }[]>([]);
   const [crackles, setCrackles] = useState<{ id: number; pos: [number, number, number]; color: string }[]>([]);
@@ -200,6 +208,42 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
     setHollowPurples(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: hpPos, dir: [direction.x, direction.y, direction.z] }]);
   };
 
+  const firePumpkinPotato = () => {
+    if (energy < 30) { window.dispatchEvent(new CustomEvent('playSound', { detail: { type: 'error' } })); return; }
+    if (onUseEnergy) onUseEnergy(30);
+    window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "호박고구마!!!!", color: "#f59e0b" } }));
+    
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    const pPos: [number, number, number] = [pos.current[0], pos.current[1] + 1, pos.current[2]];
+    setPumpkinPotatoes(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: pPos, dir: [direction.x, direction.y, direction.z] }]);
+  };
+
+  const fireMeteorStrike = () => {
+    if (energy < 100) { window.dispatchEvent(new CustomEvent('playSound', { detail: { type: 'error' } })); return; }
+    if (onUseEnergy) onUseEnergy(100);
+    window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "운석 충돌!", color: "#ef4444" } }));
+    
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    const mPos: [number, number, number] = [pos.current[0] + direction.x * 10, 0, pos.current[2] + direction.z * 10];
+    setMeteorStrikes(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: mPos }]);
+  };
+
+  const fireShadowClone = () => {
+    if (energy < 50) { window.dispatchEvent(new CustomEvent('playSound', { detail: { type: 'error' } })); return; }
+    if (onUseEnergy) onUseEnergy(50);
+    window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "그림자 분신술!", color: "#374151" } }));
+    setShadowClones(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: [pos.current[0] + (Math.random() - 0.5) * 4, pos.current[1], pos.current[2] + (Math.random() - 0.5) * 4] }]);
+  };
+
+  const fireEarthquake = () => {
+    if (energy < 80) { window.dispatchEvent(new CustomEvent('playSound', { detail: { type: 'error' } })); return; }
+    if (onUseEnergy) onUseEnergy(80);
+    window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "대지진!!", color: "#8b5cf6" } }));
+    setEarthquakes(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: [pos.current[0], 0.1, pos.current[2]] }]);
+  };
+
   const fireUnlimitedVoid = () => {
     const voidPos: [number, number, number] = [pos.current[0], 0.1, pos.current[2]];
     setVoids(prev => [...prev, { id: Math.random() * 1000000 + Date.now(), pos: voidPos }]);
@@ -273,6 +317,34 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
     }
     prevHollowPurple.current = hollowPurple;
   }, [hollowPurple]);
+
+  useEffect(() => {
+    if (pumpkinPotato && !prevPumpkinPotato.current) {
+      firePumpkinPotato();
+    }
+    prevPumpkinPotato.current = pumpkinPotato;
+  }, [pumpkinPotato]);
+
+  useEffect(() => {
+    if (meteorStrike && !prevMeteorStrike.current) {
+      fireMeteorStrike();
+    }
+    prevMeteorStrike.current = meteorStrike;
+  }, [meteorStrike]);
+
+  useEffect(() => {
+    if (shadowClone && !prevShadowClone.current) {
+      fireShadowClone();
+    }
+    prevShadowClone.current = shadowClone;
+  }, [shadowClone]);
+
+  useEffect(() => {
+    if (earthquake && !prevEarthquake.current) {
+      fireEarthquake();
+    }
+    prevEarthquake.current = earthquake;
+  }, [earthquake]);
 
   useEffect(() => {
     if (fuga && !prevFuga.current) {
@@ -1395,6 +1467,35 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
           direction={hp.dir}
           onFinish={() => setHollowPurples(prev => prev.filter(item => item.id !== hp.id))}
           isAwakened={isAwakened}
+        />
+      ))}
+      {pumpkinPotatoes.map((item) => (
+        <PumpkinPotatoEffect
+          key={item.id}
+          position={item.pos}
+          direction={item.dir}
+          onFinish={() => setPumpkinPotatoes(prev => prev.filter(i => i.id !== item.id))}
+        />
+      ))}
+      {meteorStrikes.map((item) => (
+        <MeteorStrikeEffect
+          key={item.id}
+          position={item.pos}
+          onFinish={() => setMeteorStrikes(prev => prev.filter(i => i.id !== item.id))}
+        />
+      ))}
+      {shadowClones.map((item) => (
+        <ShadowCloneEffect
+          key={item.id}
+          position={item.pos}
+          onFinish={() => setShadowClones(prev => prev.filter(i => i.id !== item.id))}
+        />
+      ))}
+      {earthquakes.map((item) => (
+        <EarthquakeEffect
+          key={item.id}
+          position={item.pos}
+          onFinish={() => setEarthquakes(prev => prev.filter(i => i.id !== item.id))}
         />
       ))}
 
