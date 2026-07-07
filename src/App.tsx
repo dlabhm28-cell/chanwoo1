@@ -1420,13 +1420,13 @@ export default function App() {
               }
               if (!lockCooldown && controlsRef.current && controlsRef.current.domElement) {
                 try {
-                  const promise = controlsRef.current.domElement.requestPointerLock({ unadjustedMovement: true });
+                  const promise = controlsRef.current.domElement.requestPointerLock({ unadjustedMovement: true }).catch((e) => {
+                    // Fallback if unadjustedMovement is not supported
+                    return controlsRef.current?.domElement.requestPointerLock();
+                  });
                   if (promise && promise.catch) {
                     promise.catch((e: any) => {
-                      try {
-                        const p2 = controlsRef.current?.domElement.requestPointerLock();
-                        if (p2 && p2.catch) p2.catch(() => {});
-                      } catch (err) {}
+                      // Silently ignore remaining pointer lock errors or re-trigger cooldown
                       setLockCooldown(true);
                       lastUnlockTime.current = Date.now();
                       if (lockCooldownTimer.current) clearTimeout(lockCooldownTimer.current);
@@ -1434,7 +1434,6 @@ export default function App() {
                     });
                   }
                 } catch (e) {
-                  try { controlsRef.current?.domElement.requestPointerLock(); } catch(err) {}
                   setLockCooldown(true);
                   lastUnlockTime.current = Date.now();
                   if (lockCooldownTimer.current) clearTimeout(lockCooldownTimer.current);
@@ -1926,7 +1925,7 @@ export default function App() {
                   <input type="number" value={stats.int} onChange={(e) => setStats(s => ({...s, int: Number(e.target.value)}))} className="bg-black/50 border border-white/20 rounded px-2 py-1 text-white" />
                 </label>
               </div>
-              <button onClick={() => { setStats({ str: 9999, agi: 9999, int: 9999 }); setHp(999999); }} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-all text-sm">스탯 뻥튀기 (Max All)</button>
+              <button onClick={() => { setStats({ str: 9999, agi: 9999, int: 9999 }); setMaxHp(999999); setHp(999999); }} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-all text-sm">스탯 뻥튀기 (Max All)</button>
             </div>
 
             <div className="border border-white/10 p-3 rounded bg-white/5 flex flex-col gap-2">
@@ -1986,7 +1985,7 @@ export default function App() {
                 <button onClick={() => setSizeModifier(1)} className="flex-1 px-2 py-2 bg-gray-600 hover:bg-gray-500 rounded font-bold transition-all text-xs">크기 복구</button>
               </div>
             </div>
-            <button onClick={() => { setShowAdminPanel(false); setTimeout(() => { try { const p = document.body.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch(e){} }, 100); }} className="mt-auto w-full py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-sm">닫기 (Close)</button>
+            <button onClick={() => { setShowAdminPanel(false); document.body.requestPointerLock(); }} className="mt-auto w-full py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-sm">닫기 (Close)</button>
           </div>
         </div>
       )}

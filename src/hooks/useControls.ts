@@ -25,10 +25,6 @@ export const useControls = () => {
     timeCellMoonPalace: false,
     spaceCleave: false,
     hollowPurple: false,
-    pumpkinPotato: false,
-    meteorStrike: false,
-    shadowClone: false,
-    earthquake: false,
     weapon1: false,
     weapon2: false,
     weapon3: false,
@@ -68,10 +64,6 @@ export const useControls = () => {
         case 'KeyL': setKeys(k => k.timeCellMoonPalace ? k : { ...k, timeCellMoonPalace: true }); break;
         case 'KeyO': setKeys(k => k.spaceCleave ? k : { ...k, spaceCleave: true }); break;
         case 'KeyP': setKeys(k => k.hollowPurple ? k : { ...k, hollowPurple: true }); break;
-        case 'KeyE': setKeys(k => k.pumpkinPotato ? k : { ...k, pumpkinPotato: true }); break;
-        case 'KeyU': setKeys(k => k.meteorStrike ? k : { ...k, meteorStrike: true }); break;
-        case 'KeyJ': setKeys(k => k.shadowClone ? k : { ...k, shadowClone: true }); break;
-        case 'KeyH': setKeys(k => k.earthquake ? k : { ...k, earthquake: true }); break;
         case 'Digit1': setKeys(k => k.weapon1 ? k : { ...k, weapon1: true }); break;
         case 'Digit2': setKeys(k => k.weapon2 ? k : { ...k, weapon2: true }); break;
         case 'Digit3': setKeys(k => k.weapon3 ? k : { ...k, weapon3: true }); break;
@@ -98,7 +90,6 @@ export const useControls = () => {
             theWorld: false, summon: false, barrier: false, dashAttack: false,
             blackFlash: false, frameFreeze: false, unlimitedVoid: false,
             selfEmbodiment: false, timeCellMoonPalace: false, spaceCleave: false, hollowPurple: false,
-            pumpkinPotato: false, meteorStrike: false, shadowClone: false, earthquake: false,
             weapon1: false, weapon2: false, weapon3: false, weapon4: false, weapon5: false,
             weapon6: false, weapon7: false, weapon8: false, weapon9: false, weapon0: false,
          });
@@ -127,10 +118,6 @@ export const useControls = () => {
         case 'KeyL': setKeys(k => ({ ...k, timeCellMoonPalace: false })); break;
         case 'KeyO': setKeys(k => ({ ...k, spaceCleave: false })); break;
         case 'KeyP': setKeys(k => ({ ...k, hollowPurple: false })); break;
-        case 'KeyE': setKeys(k => ({ ...k, pumpkinPotato: false })); break;
-        case 'KeyU': setKeys(k => ({ ...k, meteorStrike: false })); break;
-        case 'KeyJ': setKeys(k => ({ ...k, shadowClone: false })); break;
-        case 'KeyH': setKeys(k => ({ ...k, earthquake: false })); break;
         case 'Digit1': setKeys(k => ({ ...k, weapon1: false })); break;
         case 'Digit2': setKeys(k => ({ ...k, weapon2: false })); break;
         case 'Digit3': setKeys(k => ({ ...k, weapon3: false })); break;
@@ -157,7 +144,6 @@ export const useControls = () => {
             theWorld: false, summon: false, barrier: false, dashAttack: false,
             blackFlash: false, frameFreeze: false, unlimitedVoid: false,
             selfEmbodiment: false, timeCellMoonPalace: false, spaceCleave: false, hollowPurple: false,
-            pumpkinPotato: false, meteorStrike: false, shadowClone: false, earthquake: false,
             weapon1: false, weapon2: false, weapon3: false, weapon4: false, weapon5: false,
             weapon6: false, weapon7: false, weapon8: false, weapon9: false, weapon0: false,
          });
