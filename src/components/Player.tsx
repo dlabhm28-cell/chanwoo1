@@ -10,7 +10,7 @@ import { RobloxCharacter } from './RobloxCharacter';
 const SPEED = 5;
 const JUMP_FORCE = 4;
 
-export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats, isAwakened = false, isBerserk = false, pigStacks = 0, isLightningAura = false, sizeModifier = 1, isFlying = false, isImprisoned = false, isSlime = false, hasShield = false, noCooldown = false, isInvisible = false, isChicken = false, isRagdoll = false, isForcedDance = false }: { 
+export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, cooldowns, onSpiritBomb, energy, emitMove, emitAttack, players, stats, isAwakened = false, isBerserk = false, pigStacks = 0, isLightningAura = false, sizeModifier = 1, isFlying = false, isImprisoned = false, isSlime = false, hasShield = false, noCooldown = false, isInvisible = false, isChicken = false, isRagdoll = false, isForcedDance = false, isEarthquake = false }: { 
   onShoot: () => void, 
   onThrowBomb: () => void,
   onUseEnergy?: (amount: number) => void,
@@ -35,7 +35,8 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
   isInvisible?: boolean,
   isChicken?: boolean,
   isRagdoll?: boolean,
-  isForcedDance?: boolean
+  isForcedDance?: boolean,
+  isEarthquake?: boolean
 }) => {
   const { camera } = useThree();
   const { forward, backward, left, right, jump, spiritBomb, dagger, bomb, charge, weapon1, weapon2, weapon3, weapon4, weapon5, weapon6, weapon7, weapon8, weapon9, weapon0, sniper, domain, fuga, theWorld, summon, barrier, dashAttack, blackFlash, frameFreeze, unlimitedVoid, selfEmbodiment, timeCellMoonPalace, spaceCleave, hollowPurple } = useControls();
@@ -1053,6 +1054,13 @@ export const Player = ({ onShoot, onThrowBomb, onUseEnergy, onTriggerCooldown, c
       currentCamera.position.set(pos.current[0] + direction.x * 4.0, pos.current[1] + 1.2 + direction.y * 4.0, pos.current[2] + direction.z * 4.0);
     } else {
       currentCamera.position.set(pos.current[0], pos.current[1] + 1.2, pos.current[2]);
+    }
+    
+    if (isEarthquake) {
+      currentCamera.position.x += (Math.random() - 0.5) * 1.5;
+      currentCamera.position.y += (Math.random() - 0.5) * 1.5;
+      currentCamera.position.z += (Math.random() - 0.5) * 1.5;
+      currentCamera.rotation.z += (Math.random() - 0.5) * 0.1;
     }
     
     // Fall check

@@ -1,4 +1,5 @@
-import { ContactShadows, Environment, PointerLockControls, Sky, Stars } from '@react-three/drei';
+import { ContactShadows, Environment, PointerLockControls, Sky, Stars, Html } from '@react-three/drei';
+import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/cannon';
 import { Suspense, useCallback, useEffect, useState, useRef } from 'react';
@@ -141,7 +142,7 @@ if (typeof window !== 'undefined') {
 }
 
 const Taco = ({ startX, startZ }: { startX: number, startZ: number }) => {
-  const ref = useRef<any>();
+  const ref = useRef<any>(null);
   useFrame(() => {
     if (ref.current) {
       ref.current.position.y -= 0.5;
@@ -168,6 +169,105 @@ const Taco = ({ startX, startZ }: { startX: number, startZ: number }) => {
          <meshStandardMaterial color="#713f12" />
        </mesh>
     </group>
+  );
+};
+
+const SweetPotato = ({ startX, startZ }: { startX: number, startZ: number }) => {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((state, delta) => {
+    if (ref.current) {
+      ref.current.position.y -= delta * 15;
+      ref.current.rotation.x += delta * 2;
+      ref.current.rotation.z += delta * 2;
+    }
+  });
+
+  return (
+    <group ref={ref} position={[startX, 50, startZ]}>
+      <mesh>
+        <capsuleGeometry args={[0.3, 0.8, 4, 8]} />
+        <meshStandardMaterial color="#f97316" />
+      </mesh>
+    </group>
+  );
+};
+
+const JayTeacher = ({ startPos, onHit }: { startPos: [number, number, number], onHit: () => void }) => {
+  const ref = useRef<THREE.Group>(null);
+  const hasHit = useRef(false);
+
+  useFrame((state, delta) => {
+    if (ref.current && !hasHit.current) {
+      if (ref.current.position.y > 0.5) {
+        ref.current.position.y -= delta * 30; // Fall fast
+        ref.current.rotation.x += delta * 5;
+      } else {
+        ref.current.position.y = 0.5;
+        ref.current.rotation.x = 0;
+        hasHit.current = true;
+        onHit();
+      }
+    }
+  });
+
+  return (
+    <group ref={ref} position={startPos}>
+      <mesh position={[0, 1, 0]}>
+        <boxGeometry args={[1, 2, 1]} />
+        <meshStandardMaterial color="#3b82f6" />
+      </mesh>
+      <Html position={[0, 2.5, 0]} center>
+        <div className="bg-blue-600 text-white font-bold px-2 py-1 rounded whitespace-nowrap text-xs border-2 border-white shadow-lg">
+          Jay 선생님
+        </div>
+      </Html>
+    </group>
+  );
+};
+
+const ComputerFormula = ({ startPos, direction }: { startPos: [number, number, number], direction: [number, number, number] }) => {
+  const ref = useRef<THREE.Group>(null);
+  const formulas = ["O(N log N)", "E=mc²", "public static void main", "SELECT * FROM users", "console.log('Hello World')", "y = ax + b"];
+  const [formula] = useState(formulas[Math.floor(Math.random() * formulas.length)]);
+
+  useFrame((state, delta) => {
+    if (ref.current) {
+      ref.current.position.x += direction[0] * delta * 20;
+      ref.current.position.y += direction[1] * delta * 20;
+      ref.current.position.z += direction[2] * delta * 20;
+    }
+  });
+
+  return (
+    <group ref={ref} position={startPos}>
+      <Html center>
+        <div className="text-3xl font-black text-yellow-400 drop-shadow-md whitespace-nowrap pointer-events-none">
+          {formula}
+        </div>
+      </Html>
+    </group>
+  );
+};
+
+const SweetPotatoRain = () => {
+  const [potatoes, setPotatoes] = useState<{ id: number, x: number, z: number }[]>([]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPotatoes(prev => {
+        if (prev.length > 50) return prev.slice(prev.length - 50);
+        return [...prev, { id: Math.random(), x: (Math.random() - 0.5) * 100, z: (Math.random() - 0.5) * 100 }];
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <>
+      {potatoes.map(p => (
+        <SweetPotato key={p.id} startX={p.x} startZ={p.z} />
+      ))}
+    </>
   );
 };
 
@@ -222,6 +322,7 @@ export default function App() {
   const [availableRewards, setAvailableRewards] = useState<any[]>([]);
   const [ownedPets, setOwnedPets] = useState<string[]>([]);
   const [playerPos, setPlayerPos] = useState<[number, number, number]>([0, 0, 0]);
+  const playerPosRef = useRef<[number, number, number]>([0, 0, 0]);
   const [playerRot, setPlayerRot] = useState<[number, number, number]>([0, 0, 0]);
 
   const [statPoints, setStatPoints] = useState(0);
@@ -249,6 +350,10 @@ export default function App() {
   const [isRagdoll, setIsRagdoll] = useState(false);
   const [isForcedDance, setIsForcedDance] = useState(false);
   const [tacoRainTimer, setTacoRainTimer] = useState(0);
+  const [sweetPotatoRainTimer, setSweetPotatoRainTimer] = useState(0);
+  const [earthquakeTimer, setEarthquakeTimer] = useState(0);
+  const [jayTeacherEvents, setJayTeacherEvents] = useState<{ id: number, startPos: [number, number, number] }[]>([]);
+  const [computerFormulas, setComputerFormulas] = useState<{ id: number, startPos: [number, number, number], direction: [number, number, number] }[]>([]);
   const [isNukeActive, setIsNukeActive] = useState(false);
   
   const [isSpiritBombActive, setIsSpiritBombActive] = useState(false);
@@ -306,6 +411,20 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [tacoRainTimer]);
+
+  useEffect(() => {
+    if (sweetPotatoRainTimer > 0) {
+      const timer = setTimeout(() => setSweetPotatoRainTimer(p => p - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [sweetPotatoRainTimer]);
+
+  useEffect(() => {
+    if (earthquakeTimer > 0) {
+      const timer = setTimeout(() => setEarthquakeTimer(p => p - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [earthquakeTimer]);
 
   useEffect(() => {
     const handleExplosion = (e: any) => {
@@ -526,6 +645,7 @@ export default function App() {
     };
 
     const handlePlayerMove = (e: any) => {
+      playerPosRef.current = e.detail.pos;
       setPlayerPos(e.detail.pos);
       if (e.detail.rot) setPlayerRot(e.detail.rot);
     };
@@ -699,6 +819,24 @@ export default function App() {
 
       if (document.activeElement?.tagName === 'INPUT') return;
       
+      // Special actions
+      if (e.key.toLowerCase() === 'h' && isStarted) {
+        setSweetPotatoRainTimer(15);
+        window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "호박고구마비가 내립니다!", color: "#f97316" } }));
+      }
+      
+      if (e.key.toLowerCase() === 'u' && isStarted) {
+        setEarthquakeTimer(5);
+        window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "대지진이 발생했습니다!", color: "#ef4444" } }));
+        window.dispatchEvent(new CustomEvent('playSound', { detail: 'bassDrop' }));
+      }
+      
+      if (e.key.toLowerCase() === 'j' && isStarted && nickname === '조찬우') {
+        const id = Math.random();
+        setJayTeacherEvents(prev => [...prev, { id, startPos: [playerPosRef.current[0], playerPosRef.current[1] + 30, playerPosRef.current[2]] }]);
+        window.dispatchEvent(new CustomEvent('showSystemMessage', { detail: { text: "Jay 선생님이 나타났습니다!", color: "#3b82f6" } }));
+      }
+
       // Tab to change perspective
       if (e.code === 'Tab' && isJoined) {
         e.preventDefault();
@@ -762,7 +900,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scene, showShop, isStarted, playerPos, isJoined, isChatting]);
+  }, [scene, showShop, isStarted, isJoined, isChatting]);
 
   // Quest Timer
   useEffect(() => {
@@ -952,6 +1090,7 @@ export default function App() {
               isChicken={isChicken}
               isRagdoll={isRagdoll}
               isForcedDance={isForcedDance}
+              isEarthquake={earthquakeTimer > 0}
             />
             
             {ownedPets.map((p, i) => (
@@ -1025,6 +1164,39 @@ export default function App() {
             <Phase2CinematicCamera targetPos={phase2Cinematic.pos} onFinish={() => setPhase2Cinematic(null)} />
           )}
           {tacoRainTimer > 0 && <RainTacos />}
+          {sweetPotatoRainTimer > 0 && <SweetPotatoRain />}
+
+          {jayTeacherEvents.map(j => (
+            <JayTeacher key={j.id} startPos={j.startPos} onHit={() => {
+              // Shoot formulas when hitting the ground
+              const newFormulas = [];
+              for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                newFormulas.push({
+                  id: Math.random(),
+                  startPos: [j.startPos[0], 1.5, j.startPos[2]] as [number, number, number],
+                  direction: [Math.cos(angle), 0, Math.sin(angle)] as [number, number, number]
+                });
+              }
+              setComputerFormulas(prev => [...prev, ...newFormulas]);
+              window.dispatchEvent(new CustomEvent('bombExplode', { detail: { pos: [j.startPos[0], 0, j.startPos[2]], radius: 15, damageMultiplier: 5, team: 'player' } }));
+              window.dispatchEvent(new CustomEvent('playSound', { detail: 'explosion' }));
+              
+              // Remove the teacher after 2 seconds
+              setTimeout(() => {
+                setJayTeacherEvents(prev => prev.filter(p => p.id !== j.id));
+              }, 2000);
+
+              // Remove formulas after 3 seconds
+              setTimeout(() => {
+                setComputerFormulas(prev => prev.filter(f => !newFormulas.find(nf => nf.id === f.id)));
+              }, 3000);
+            }} />
+          ))}
+
+          {computerFormulas.map(c => (
+            <ComputerFormula key={c.id} startPos={c.startPos} direction={c.direction} />
+          ))}
           <PointerLockControls 
             ref={controlsRef}
             onLock={() => { setIsLocked(true); setIsStarted(true); }} 
@@ -1925,7 +2097,7 @@ export default function App() {
                   <input type="number" value={stats.int} onChange={(e) => setStats(s => ({...s, int: Number(e.target.value)}))} className="bg-black/50 border border-white/20 rounded px-2 py-1 text-white" />
                 </label>
               </div>
-              <button onClick={() => { setStats({ str: 9999, agi: 9999, int: 9999 }); setMaxHp(999999); setHp(999999); }} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-all text-sm">스탯 뻥튀기 (Max All)</button>
+              <button onClick={() => { setStats({ str: 9999, agi: 9999, int: 9999 }); setLevel(9999); setHp(999999); }} className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-all text-sm">스탯 뻥튀기 (Max All)</button>
             </div>
 
             <div className="border border-white/10 p-3 rounded bg-white/5 flex flex-col gap-2">
